@@ -1,0 +1,98 @@
+# Exercise: Develop a Text Analysis Agent - Portal & Setup Steps
+
+## 1. Create a Microsoft Foundry Project
+
+1. Open the Microsoft Foundry portal at https://ai.azure.com and sign in.
+2. Enable the "New Foundry" option in the toolbar if not already enabled.
+3. Create a new project with a unique name.
+4. In "Advanced options", specify:
+   - "Foundry resource": Default name ({project_name}-resource).
+   - "Subscription": Your Azure subscription.
+   - "Resource group": Create or select one.
+   - "Region": Select any available region.
+5. Note the "Foundry resource name", "API key", and "Project endpoint" from the project home page.
+
+## 2. Create an Agent
+
+1. Navigate to the "Build" page and select the "Agents" tab.
+2. Create a new agent named "Text-Analysis-Agent".
+3. In the agent playground, ensures a "gpt-4o" (or gpt-4.1 as specified in lab) model is deployed and selected.
+4. Assign the following "Instructions":
+   ```
+   You are an AI agent that assists users by helping them analyze text.
+   ```
+5. Save the changes and test with the prompt: "What can you help me with?"
+
+## 3. Create an Azure Language Tool Connection
+
+1. In the left navigation pane, select the "Tools" page.
+2. Select "Azure Language in Foundry Tools" from the Catalog.
+3. Connect it using the following configuration:
+   - "Remote MCP Server endpoint": https://{foundry-resource-name}.cognitiveservices.azure.com/language/mcp?api-version=2025-11-15-preview
+   - "Authentication": Key-based (use the API Key from your Foundry project).
+4. On the details page for the connection, select "Use in an agent" and choose your "Text-Analysis-Agent".
+
+## 4. Enable the AI Gateway
+
+1. In the Foundry portal, navigate to "Operate" > "Admin console" in the left navigation pane.
+2. Select the "AI Gateway" tab and select "Add AI Gateway".
+3. Select your Foundry resource and configure the gateway (e.g., by creating a new Azure API Management instance).
+
+## 5. Test the Tool in the Playground
+
+1. Update the agent's instructions to:
+   ```
+   You are an AI agent that assists users by helping them analyze text. Use the Azure Language tool to perform text analysis tasks.
+   ```
+2. Save changes.
+3. Test with a prompt requesting PII redaction or entity extraction.
+4. When prompted, select "Always approve all Azure Language in Foundry Tools tools".
+
+## 6. Configure Tool Approval
+
+1. In the playground, find the Azure Language tool under Instructions and select "Configure".
+2. Set "Approval setting" to "Always auto-approve all tools".
+3. Save the agent.
+
+
+
+# (VS CODE STEPS)
+
+## 1. Get the Application Files
+
+1. Open "Visual Studio Code".
+2. Open the command palette ("Ctrl+Shift+P") and use "Git: Clone" to clone `https://github.com/microsoftlearning/mslearn-ai-language`.
+3. Navigate to `/Labfiles/02-language-agent/Python/text-agent`.
+
+## 2. Configure the Environment
+
+1. Install the "Python extension" in VS Code.
+2. Use "Python: Select Interpreter" to create a new "Venv" environment.
+3. Open a terminal in the `text-agent` folder (this should automatically activate the venv).
+4. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+## 3. Configure the .env File
+
+1. Open `.env` in the `text-agent` folder.
+2. Set `FOUNDRY_ENDPOINT` to your project endpoint (e.g., `https://.../api/projects/...`).
+3. Set `AGENT_NAME` to `Text-Analysis-Agent`.
+4. Set `MODEL_DEPLOYMENT_NAME` to your model's deployment name (e.g., `gpt-4o`).
+
+## 4. Implement the Code (`text-agent.py`)
+
+## 5. Test the Application
+
+1. In the terminal, sign in to Azure:
+   ```bash
+   az login
+   ```
+2. Run the application:
+   ```bash
+   python text-agent.py
+   ```
+3. Test with a prompt.
+
+
