@@ -72,9 +72,9 @@ PART 2: LOCAL ENVIRONMENT SETUP
    cp .env.example .env
 
    Open .env and set your project details:
-   FOUNDRY_ENDPOINT="https://<your-resource>.services.ai.azure.com/api/projects/<project-id>"
-   AGENT_NAME="Text-Analysis-Agent"
-   MODEL_DEPLOYMENT_NAME="gpt-4o"
+   FOUNDRY_ENDPOINT="https://<your_foundry_resource_name>.services.ai.azure.com/api/projects/<your_foundry_project_id>"
+   AGENT_NAME="<your_foundry_agent_name>"
+   MODEL_DEPLOYMENT_NAME="<your_model_deployment_name>"
 
    Note: If you run the Streamlit web studio without a .env file, you can
    also paste your Foundry Endpoint directly into the sidebar fields in the
