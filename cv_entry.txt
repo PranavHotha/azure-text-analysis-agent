@@ -1,0 +1,37 @@
+========================================================================
+AZURE AI TEXT ANALYSIS AGENT - CV / RESUME ENTRIES
+========================================================================
+
+------------------------------------------------------------------------
+OPTION 1: DETAILED 4-BULLET FORMAT (RECOMMENDED)
+Best for: Dedicated "Projects" or "Technical Experience" section
+------------------------------------------------------------------------
+
+Azure AI Text Analysis & PII Sanitization Agent | Azure AI Foundry, GPT-4o, Model Context Protocol (MCP), Python, Streamlit
+[github.com/PranavHotha/azure-text-analysis-agent]
+
+- Agentic Architecture: Architected an enterprise NLP system orchestrating Azure AI Foundry (GPT-4o) and Azure AI Language Cognitive Services via the Model Context Protocol (MCP) to perform deterministic, GDPR/HIPAA-compliant PII redaction, entity classification, and aspect-based sentiment scoring.
+- Zero-Secret Cloud Authentication: Implemented passwordless enterprise security using Microsoft Entra ID (DefaultAzureCredential) and Azure CLI session caching, completely removing hardcoded keys from code and version control.
+- Automated Lifecycle & Versioning: Developed an automated agent prompt and instruction management pipeline (sync_agent.py) using the azure-ai-projects Python SDK, eliminating manual cloud portal configuration and ensuring reproducible agent versioning.
+- Interactive Multi-Interface Studio: Engineered an enterprise Streamlit Web Application featuring live word/character metrics, multi-task presets, multi-turn conversational chat with live tool-execution status loaders, and a benchmark comparison showcase, backed by a headless terminal CLI.
+
+
+------------------------------------------------------------------------
+OPTION 2: COMPACT 2-BULLET FORMAT
+Best for: 1-page resumes or space-constrained layouts
+------------------------------------------------------------------------
+
+Azure AI Text Analysis & PII Sanitization Agent | Azure AI Foundry, Python, MCP, Streamlit
+[github.com/PranavHotha/azure-text-analysis-agent]
+
+- Engineered an enterprise AI agent integrating Azure AI Foundry (GPT-4o) with Azure AI Language tools (MCP) for deterministic PII sanitization and sentiment intelligence, backed by zero-secret Microsoft Entra ID authentication.
+- Automated agent versioning via the Azure AI Projects SDK and built a dual-interface application: an interactive 3-tab Streamlit Web Studio with live analysis presets, chat memory, and benchmark comparisons, alongside a terminal CLI.
+
+
+------------------------------------------------------------------------
+ATS KEYWORD COMPLIANCE LIST
+Add these to your resume Skills section:
+------------------------------------------------------------------------
+
+Azure AI Foundry, Azure OpenAI (GPT-4o), Model Context Protocol (MCP), Azure AI Language / Cognitive Services, Microsoft Entra ID, PII Masking & GDPR Compliance, Azure AI Projects SDK (Python), Streamlit, Prompt Engineering, Agentic Workflows.
+========================================================================
