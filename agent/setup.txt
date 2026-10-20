@@ -1,136 +1,149 @@
-# Text Analysis & PII Sanitization Agent - Complete Setup Guide
+========================================================================
+TEXT ANALYSIS & PII SANITIZATION AGENT - COMPLETE SETUP GUIDE
+========================================================================
 
-This guide walks you through setting up the Azure AI Foundry cloud resources, authenticating with Microsoft Entra ID, syncing instructions via the Python SDK, and running the application.
-
----
-
-## PART 1: Azure AI Foundry Cloud Configuration
-
-### 1. Create a Microsoft Foundry Project
-1. Go to https://ai.azure.com and sign in with your Azure subscription.
-2. Select or create a Foundry Project (e.g. `text-analysis-project`).
-3. Note your **Project Endpoint** from the project overview page:
-   - Example: `https://<your-resource>.services.ai.azure.com/api/projects/<project-id>`
-
-### 2. Deploy the LLM
-1. In the Foundry portal, navigate to **Deployments** (or Models).
-2. Deploy `gpt-4o` (or `gpt-4.1`). Note the deployment name (e.g. `gpt-4o`).
-
-### 3. Create the Agent & Attach Azure Language (MCP) Tool
-1. In the left navigation, go to **Build** > **Agents**.
-2. Create an Agent named `Text-Analysis-Agent`.
-3. Select your deployed model (`gpt-4o`).
-4. Under **Tools**, connect **Azure Language in Foundry Tools** (Remote MCP Server):
-   - Endpoint: `https://<foundry-resource-name>.cognitiveservices.azure.com/language/mcp?api-version=2025-11-15-preview`
-   - Authentication: Key-based (API key from your Foundry resource).
-5. Under Agent Tools > Azure Language Tool > **Configure**:
-   - Set **Approval setting** to: **"Always auto-approve all tools"**.
-   - Click **Save**.
-
----
-
-## PART 2: Local Environment Setup
-
-### 1. Clone & Open Workspace
-Open your terminal in the `agent/` folder:
-```powershell
-cd c:\<YOUR-FOLDER-NAME>\text-analysis-agent\agent
-```
-
-### 2. Set Up Python Virtual Environment
-```powershell
-python -m venv labenv
-.\labenv\Scripts\Activate.ps1
-```
-
-### 3. Install Required Packages
-```powershell
-pip install -r requirements.txt
-```
-*(Installs `python-dotenv`, `azure-identity`, `azure-ai-projects`, and `streamlit`)*
-
-### 4. Authenticate via Azure CLI (Microsoft Entra ID)
-This project uses **Microsoft Entra ID** authentication (zero hardcoded API keys or secrets).
-
-Run this directly inside your IDE editor terminal (VS Code / Antigravity IDE / PowerShell):
-```powershell
-az login
-```
-**What happens:**
-1. A browser window will automatically pop up asking you to sign in to your Microsoft / Azure account.
-2. Sign in with the Azure account that has access to your Azure AI Foundry project.
-3. Once authenticated, close the browser tab. Your IDE terminal will display your active Azure subscription.
-4. You only need to do this once—the session token persists across restarts.
+This guide walks you through setting up Azure AI Foundry cloud resources,
+authenticating with Microsoft Entra ID, syncing agent instructions via the
+Python SDK, and running the application.
 
 
-### 5. Configure `.env` (Optional for Streamlit)
-Copy `.env.example` to `.env`:
-```powershell
-cp .env.example .env
-```
-Open `.env` and fill in your Azure details:
-```env
-FOUNDRY_ENDPOINT="https://<your-resource>.services.ai.azure.com/api/projects/<project-id>"
-AGENT_NAME="Text-Analysis-Agent" 
-MODEL_DEPLOYMENT_NAME="gpt-4o"
-```
-*(Note: If you run Streamlit without a `.env` file, you can also paste your Foundry Endpoint directly into the sidebar fields on the web page!)*
+------------------------------------------------------------------------
+PART 1: AZURE AI FOUNDRY CLOUD CONFIGURATION
+------------------------------------------------------------------------
+
+1. Create a Microsoft Foundry Project:
+   - Go to https://ai.azure.com and sign in with your Azure subscription.
+   - Create or select a Foundry Project (e.g. text-analysis-project).
+   - Copy your Project Endpoint from the project overview page.
+     Example:
+     https://<your-resource>.services.ai.azure.com/api/projects/<project-id>
+
+2. Deploy the Model:
+   - In the Foundry portal, navigate to Deployments (or Models).
+   - Deploy gpt-4o (or gpt-4.1).
+   - Note the deployment name (e.g. gpt-4o).
+
+3. Create the Agent & Attach Azure Language Tool (Remote MCP):
+   - In the left navigation, go to Build > Agents.
+   - Create an Agent named: Text-Analysis-Agent
+   - Select your model deployment: gpt-4o
+   - Under Tools, connect "Azure Language in Foundry Tools" (MCP Server):
+     Endpoint:
+     https://<foundry-resource>.cognitiveservices.azure.com/language/mcp?api-version=2025-11-15-preview
+     Authentication: Key-based (API key from your Foundry resource)
+   - Under Agent Tools > Azure Language Tool > Configure:
+     Set Approval setting to: "Always auto-approve all tools"
+     Click Save.
 
 
----
+------------------------------------------------------------------------
+PART 2: LOCAL ENVIRONMENT SETUP
+------------------------------------------------------------------------
 
-## PART 3: Sync Agent Instructions via SDK (Zero Portal Editing)
+1. Open your terminal in the agent directory:
+   cd c:\<YOUR-WORKSPACE-PATH>\text-analysis-agent\agent
 
-Instead of manually editing system instructions in the web browser, push the clean, line-free `SYSTEM_MESSAGE` directly to Azure using the SDK:
+2. Create and activate a Python virtual environment:
+   python -m venv labenv
+   .\labenv\Scripts\Activate.ps1
 
-```powershell
-python sync_agent.py
-```
-*Outputs: `[SUCCESS] Successfully updated 'text-analysis-agent' in Azure to version: XX`*
+   (Your terminal prompt will now show: (labenv))
 
----
+3. Install required packages:
+   pip install -r requirements.txt
 
-## PART 4: Running the Application
+   (Installs: python-dotenv, azure-identity, azure-ai-projects, streamlit)
 
-> **Note on Virtual Environment:** Always ensure your virtual environment is active in your terminal (`.\labenv\Scripts\Activate.ps1` -> prompt shows `(labenv)`), or invoke the environment's python directly. Running global `python app.py` will cause `ModuleNotFoundError: No module named 'streamlit'`.
+4. Authenticate with Azure CLI (Microsoft Entra ID):
+   Run this directly inside your IDE terminal (VS Code / PowerShell):
+   
+   az login
 
-### Option A: Launch Streamlit Web Studio (Recommended)
+   What happens:
+   - A browser window will automatically open asking you to sign in.
+   - Sign in with the Azure account that has access to your Foundry project.
+   - Once authenticated, close the browser tab.
+   - The terminal will display your active subscription details.
+   - You only need to run this command once; your login persists.
 
-Make sure `labenv` is activated and run:
-```powershell
-# In agent/ directory with venv activated:
-.\labenv\Scripts\Activate.ps1
-streamlit run app.py
-```
-Or run directly without activating:
-```powershell
-.\labenv\Scripts\python.exe -m streamlit run app.py
-```
-*Opens automatically in your browser at `http://localhost:8501` featuring:*
-- **Text Analysis Agent tab**: Real-time PII redaction, sentiment evaluation, and entity extraction.
-- **Text Analysis Chat Assistant tab**: Interactive conversational agent with animated loading status.
-- **Interactive Sample Showcase tab**: Verified benchmarks with side-by-side inputs and accurate outputs.
+5. Configure .env file (Optional for Streamlit):
+   Copy .env.example to .env:
+   
+   cp .env.example .env
 
-### Option B: Launch Terminal CLI
-```powershell
-# With (labenv) activated:
-python text-agent.py
+   Open .env and set your project details:
+   FOUNDRY_ENDPOINT="https://<your-resource>.services.ai.azure.com/api/projects/<project-id>"
+   AGENT_NAME="Text-Analysis-Agent"
+   MODEL_DEPLOYMENT_NAME="gpt-4o"
 
-# Or directly:
-.\labenv\Scripts\python.exe text-agent.py
-```
-*Runs the interactive multi-turn command-line conversation loop.*
+   Note: If you run the Streamlit web studio without a .env file, you can
+   also paste your Foundry Endpoint directly into the sidebar fields in the
+   browser UI!
 
----
 
-## Troubleshooting & Common Questions
+------------------------------------------------------------------------
+PART 3: SYNC AGENT INSTRUCTIONS VIA SDK (ZERO PORTAL EDITING)
+------------------------------------------------------------------------
 
-- **`ModuleNotFoundError: No module named 'streamlit'`**:
-  Streamlit is installed inside the virtual environment (`labenv`), not globally. Run `.\labenv\Scripts\Activate.ps1` first, then run `streamlit run app.py`, or use `.\labenv\Scripts\python.exe -m streamlit run app.py`.
-- **PowerShell script execution disabled**:
-  If `Activate.ps1` fails with an execution policy error, enable it for your current terminal session:
-  ```powershell
-  Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process
-  .\labenv\Scripts\Activate.ps1
-  ```
+Instead of manually editing system instructions in the web browser, push
+the clean, line-free instructions directly to Azure using the SDK:
 
+   python sync_agent.py
+
+Result:
+   [SUCCESS] Successfully updated 'text-analysis-agent' in Azure to version: XX
+
+
+------------------------------------------------------------------------
+PART 4: RUNNING THE APPLICATION
+------------------------------------------------------------------------
+
+Important: Always ensure your virtual environment is active in your terminal
+(prompt shows: (labenv)), or call the environment's python path directly.
+
+Option A: Launch Streamlit Web Studio (Recommended)
+   With (labenv) activated:
+      streamlit run app.py
+
+   Or launch directly without activating:
+      .\labenv\Scripts\python.exe -m streamlit run app.py
+
+   Opens automatically in your browser at http://localhost:8501 (or 8502) featuring:
+   - Text Analysis Agent: PII redaction, sentiment scoring, entity extraction.
+   - Text Analysis Chat Assistant: Interactive chat with animated pulsing loader.
+   - Interactive Sample Showcase: Verified benchmark cases with side-by-side results.
+
+Option B: Launch Terminal CLI
+   With (labenv) activated:
+      python text-agent.py
+
+   Or launch directly without activating:
+      .\labenv\Scripts\python.exe text-agent.py
+
+   Runs an interactive multi-turn conversation loop in the command line.
+
+
+------------------------------------------------------------------------
+PART 5: TROUBLESHOOTING & COMMON QUESTIONS
+------------------------------------------------------------------------
+
+1. Error: ModuleNotFoundError: No module named 'streamlit'
+   Cause: You ran global python instead of the virtual environment.
+   Fix: Activate the virtual environment first:
+      .\labenv\Scripts\Activate.ps1
+      streamlit run app.py
+   Or run directly using:
+      .\labenv\Scripts\python.exe -m streamlit run app.py
+
+2. Error: Execution of scripts is disabled on this system (PowerShell)
+   Cause: PowerShell script execution policy restriction.
+   Fix: Enable script execution for your current terminal session:
+      Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process
+      .\labenv\Scripts\Activate.ps1
+
+3. Error: Azure Client is not connected / 401 Unauthorized
+   Cause: You are not signed in or credentials are missing.
+   Fix:
+   - Run 'az login' in your IDE terminal.
+   - Ensure your Foundry Endpoint is set in .env or pasted into the sidebar.
+========================================================================
