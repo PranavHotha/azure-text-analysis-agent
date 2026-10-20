@@ -1,0 +1,21 @@
+# Environment and credentials
+.env
+agent/.env
+*.env
+
+# Virtual environments
+labenv/
+agent/labenv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# IDE & OS
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini
