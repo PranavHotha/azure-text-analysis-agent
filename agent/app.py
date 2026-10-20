@@ -12,7 +12,7 @@ from azure.ai.projects import AIProjectClient
 
 # Set page configuration
 st.set_page_config(
-    page_title="Azure AI Text Analysis Studio",
+    page_title="Azure AI Text Analysis Agent",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -494,7 +494,7 @@ def run_agent_turn(openai_client, model: str, agent_name: str, conversation_hist
 # Top Header
 st.markdown("""
 <div class="studio-header">
-    <div class="studio-title">Azure AI Text Analysis Studio</div>
+    <div class="studio-title">Azure AI Text Analysis Agent</div>
     <div class="studio-subtitle">Enterprise Data Privacy, PII Redaction, and Sentiment Intelligence powered by Azure AI Foundry and Language Tools.</div>
 </div>
 """, unsafe_allow_html=True)
