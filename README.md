@@ -78,8 +78,8 @@ pip install -r requirements.txt
 Create a `.env` file in the `agent/` folder with your Azure AI Foundry details:
 ```env
 FOUNDRY_ENDPOINT="https://<your-project>.services.ai.azure.com/api/projects/<project-id>"
-AGENT_NAME="Text-Analysis-Agent"
-MODEL_DEPLOYMENT_NAME="gpt-4o"
+AGENT_NAME="your_agent_name"
+MODEL_DEPLOYMENT_NAME="your_model"
 ```
 
 ### 4. Running the Application
