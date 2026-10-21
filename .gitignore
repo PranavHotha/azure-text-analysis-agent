@@ -19,3 +19,6 @@ __pycache__/
 .idea/
 Thumbs.db
 Desktop.ini
+
+# Local inputs and personal files
+cv_entry.txt

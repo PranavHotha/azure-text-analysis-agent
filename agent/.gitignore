@@ -10,3 +10,6 @@ env/
 # Ignore Python cache
 __pycache__/
 *.py[cod]
+
+# Personal / local files
+cv_entry.txt
