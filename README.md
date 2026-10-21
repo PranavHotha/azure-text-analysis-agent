@@ -1,6 +1,6 @@
-# Azure AI Text Analysis & PII Sanitization Agent
+# Azure AI Text Analysis & PII Redaction Agent
 
-An enterprise-grade AI Agent application built with **Azure AI Foundry**, **OpenAI GPT-4o**, and **Azure AI Language (Cognitive Services)** using the **Model Context Protocol (MCP)**. 
+An AI Agent application built with **Azure AI Foundry**, **OpenAI GPT-4o**, and **Azure AI Language (Cognitive Services)** using the **Model Context Protocol (MCP)**. 
 
 The system provides deterministic PII detection & redaction, sentiment classification, and entity extraction through both a high-performance **Streamlit Web Application** and an interactive **CLI Terminal Agent**.
 
