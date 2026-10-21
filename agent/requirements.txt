@@ -1,4 +1,6 @@
 python-dotenv
 azure-identity
 azure-ai-projects==2.0.0b4
-streamlit
+streamlit
+httpx
+openai
