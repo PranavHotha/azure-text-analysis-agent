@@ -443,8 +443,9 @@ def get_active_azure_clients():
     """
     load_dotenv()
     env_endpoint = (os.getenv("FOUNDRY_ENDPOINT") or "").strip()
-    agent_name = (os.getenv("AGENT_NAME") or "").strip() or "Text-Analysis-Agent"
-    model = (os.getenv("MODEL_DEPLOYMENT_NAME") or "").strip() or "gpt-4o"
+    # Signed-in users can supply their own agent/model (session-only), else fall back to server env
+    agent_name = (st.session_state.get("user_agent_name") or "").strip() or (os.getenv("AGENT_NAME") or "").strip() or "Text-Analysis-Agent"
+    model = (st.session_state.get("user_model_name") or "").strip() or (os.getenv("MODEL_DEPLOYMENT_NAME") or "").strip() or "gpt-4o"
 
     # Check for user-provided endpoint in active session
     user_endpoint = st.session_state.get("user_foundry_endpoint", "").strip() or env_endpoint
@@ -846,20 +847,45 @@ with st.sidebar:
         </div>
         """, unsafe_allow_html=True)
 
-        # Allow user to specify their own Foundry Project Endpoint during their active session
-        env_endpoint = (os.getenv("FOUNDRY_ENDPOINT") or "").strip()
-        user_endpoint = st.text_input(
-            "Your Foundry Endpoint:",
-            value=st.session_state.get("user_foundry_endpoint", env_endpoint),
-            placeholder="https://<resource>.services.ai.azure.com/api/projects/<id>",
-            help="Your personal Azure AI Foundry project endpoint. Stored only in volatile session memory."
-        )
-        st.session_state["user_foundry_endpoint"] = user_endpoint
+        # Foundry details are grouped in a form: values are only applied (and a
+        # connection attempted) when the user clicks "Connect to Azure Foundry".
+        with st.form("foundry_connection_form", border=False):
+            form_endpoint = st.text_input(
+                "Your Foundry Endpoint:",
+                value=st.session_state.get("user_foundry_endpoint", (os.getenv("FOUNDRY_ENDPOINT") or "").strip()),
+                placeholder="https://<resource>.services.ai.azure.com/api/projects/<id>",
+                help="Your personal Azure AI Foundry project endpoint. Stored only in volatile session memory."
+            )
+            form_agent = st.text_input(
+                "Agent Name:",
+                value=st.session_state.get("user_agent_name", (os.getenv("AGENT_NAME") or "").strip()),
+                placeholder="text-analysis-agent",
+                help="Name of your agent in Azure AI Foundry."
+            )
+            form_model = st.text_input(
+                "Model Deployment:",
+                value=st.session_state.get("user_model_name", (os.getenv("MODEL_DEPLOYMENT_NAME") or "").strip()),
+                placeholder="gpt-4.1",
+                help="Name of your model deployment in Azure AI Foundry."
+            )
+            connect_clicked = st.form_submit_button(
+                "🔌 Connect to Azure Foundry",
+                type="primary",
+                use_container_width=True,
+            )
+
+        if connect_clicked:
+            if not form_endpoint.strip():
+                st.warning("Please enter your Foundry endpoint before connecting.")
+            else:
+                st.session_state["user_foundry_endpoint"] = form_endpoint.strip()
+                st.session_state["user_agent_name"] = form_agent.strip()
+                st.session_state["user_model_name"] = form_model.strip()
+                st.rerun()
 
         if st.button("Sign Out", use_container_width=True):
-            st.session_state.pop("entra_token", None)
-            st.session_state.pop("entra_user", None)
-            st.session_state.pop("user_foundry_endpoint", None)
+            for key in ("entra_token", "entra_user", "user_foundry_endpoint", "user_agent_name", "user_model_name"):
+                st.session_state.pop(key, None)
             st.rerun()
 
     elif msal_app:
@@ -913,6 +939,16 @@ with st.sidebar:
         """, unsafe_allow_html=True)
         st.write(f"Agent: **{agent_name}**")
         st.write(f"Model: **{model}**")
+    elif is_entra_logged_in:
+        # Signed in: never silently fall back to demo; explain what's missing
+        st.markdown("""
+        <div style="background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+            <div style="font-weight: 600; color: #B45309; font-size: 13.5px; margin-bottom: 2px;">⏳ Signed in, not yet connected</div>
+            <div style="font-size: 12px; color: #92400E; line-height: 1.4;">Enter your Foundry endpoint above to switch to live Azure.</div>
+        </div>
+        """, unsafe_allow_html=True)
+        if init_error and st.session_state.get("user_foundry_endpoint", "").strip():
+            st.error(init_error)
     else:
         st.markdown("""
         <div style="background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
