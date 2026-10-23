@@ -323,25 +323,66 @@ st.markdown("""
         50% { opacity: 1; color: #0078D4; }
     }
 
-    /* Buttons */
-    button[kind="primary"] {
-        background-color: #0078D4 !important;
+    /* Buttons & Form Submit Buttons */
+    button[kind="primary"], div[data-testid="stFormSubmitButton"] button {
+        background: linear-gradient(135deg, #0078D4 0%, #00539C 100%) !important;
         color: #FFFFFF !important;
         border: none !important;
         border-radius: 8px !important;
         font-weight: 600 !important;
-        padding: 9px 18px !important;
+        font-size: 0.92rem !important;
+        padding: 10px 18px !important;
         letter-spacing: -0.01em !important;
+        box-shadow: 0 2px 8px rgba(0, 120, 212, 0.28) !important;
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        cursor: pointer !important;
     }
-    button[kind="primary"]:hover {
-        background-color: #005A9E !important;
+    button[kind="primary"]:hover, div[data-testid="stFormSubmitButton"] button:hover {
+        background: linear-gradient(135deg, #106EBE 0%, #004578 100%) !important;
+        box-shadow: 0 4px 14px rgba(0, 120, 212, 0.40) !important;
+        transform: translateY(-1px) !important;
+    }
+    button[kind="primary"]:active, div[data-testid="stFormSubmitButton"] button:active {
+        transform: translateY(0) !important;
+        box-shadow: 0 1px 4px rgba(0, 120, 212, 0.20) !important;
     }
     button[kind="secondary"] {
         background-color: #FFFFFF !important;
         border: 1px solid #E2E8F0 !important;
-        color: #334155 !important;
+        color: #475569 !important;
         border-radius: 8px !important;
         font-weight: 500 !important;
+        transition: all 0.15s ease-in-out !important;
+    }
+    button[kind="secondary"]:hover {
+        background-color: #F8FAFC !important;
+        border-color: #CBD5E1 !important;
+        color: #0F172A !important;
+    }
+
+    /* Connection Settings Card */
+    .target-config-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 10px;
+        margin-bottom: 6px;
+    }
+    .target-config-title {
+        font-size: 0.82rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #334155;
+    }
+    .target-config-badge {
+        font-size: 0.68rem;
+        font-weight: 600;
+        background: #F1F5F9;
+        color: #64748B;
+        padding: 2px 7px;
+        border-radius: 4px;
+        border: 1px solid #E2E8F0;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -865,8 +906,15 @@ with st.sidebar:
         </div>
         """, unsafe_allow_html=True)
 
-        # Foundry details are grouped in a form: values are only applied (and a
-        # connection attempted) when the user clicks "Connect to Azure Foundry".
+        # Header for target Azure settings
+        st.markdown("""
+        <div class="target-config-header">
+            <span class="target-config-title">Azure Project Target</span>
+            <span class="target-config-badge">Session Only</span>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Foundry details form with enhanced primary connect action
         with st.form("foundry_connection_form", border=False):
             form_endpoint = st.text_input(
                 "Your Foundry Endpoint:",
@@ -887,7 +935,7 @@ with st.sidebar:
                 help="Name of your model deployment in Azure AI Foundry."
             )
             connect_clicked = st.form_submit_button(
-                "🔌 Connect to Azure Foundry",
+                "⚡ Connect to Azure Foundry",
                 type="primary",
                 use_container_width=True,
             )
