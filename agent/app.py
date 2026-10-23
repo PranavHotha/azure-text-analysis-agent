@@ -6,9 +6,14 @@ import time
 import html
 # pyrefly: ignore[missing-import]
 import streamlit as st
+import msal
 from dotenv import load_dotenv
+from azure.core.credentials import AccessToken
 from azure.identity import DefaultAzureCredential
 from azure.ai.projects import AIProjectClient
+
+# Load server environment variables immediately
+load_dotenv(override=True)
 
 # Set page configuration
 st.set_page_config(
@@ -391,37 +396,98 @@ def render_animated_loader(model_name: str, status_msg: str) -> str:
     """
 
 
-@st.cache_resource
-def get_azure_clients(custom_endpoint=None, custom_agent=None, custom_model=None):
-    """Initializes Azure AI Project Client and OpenAI Client (cached across runs)"""
+class EntraTokenCredential:
+    """Wraps an Entra ID delegated bearer token for Azure SDK clients"""
+    def __init__(self, access_token: str, expires_on: int = None):
+        self.access_token = access_token
+        self.expires_on = expires_on or int(time.time() + 3600)
+
+    def get_token(self, *scopes, **kwargs):
+        return AccessToken(self.access_token, self.expires_on)
+
+
+# Entra ID Configuration (dynamically loaded from server environment)
+def get_entra_config():
+    load_dotenv(override=True)
+    client_id = (os.getenv("ENTRA_CLIENT_ID") or "").strip()
+    tenant_id = (os.getenv("ENTRA_TENANT_ID") or "common").strip()
+    client_secret = (os.getenv("ENTRA_CLIENT_SECRET") or "").strip()
+    redirect_uri = (os.getenv("ENTRA_REDIRECT_URI") or "http://localhost:8501").strip()
+    scopes = ["https://cognitiveservices.azure.com/.default"]
+    return client_id, tenant_id, client_secret, redirect_uri, scopes
+
+
+def get_msal_app():
+    """Initializes MSAL Application (Public or Confidential based on secret presence)"""
+    client_id, tenant_id, client_secret, _, _ = get_entra_config()
+    if not client_id:
+        return None
+    authority = f"https://login.microsoftonline.com/{tenant_id}"
+    if client_secret:
+        return msal.ConfidentialClientApplication(
+            client_id=client_id,
+            client_credential=client_secret,
+            authority=authority,
+        )
+    return msal.PublicClientApplication(
+        client_id=client_id,
+        authority=authority,
+    )
+
+
+def get_active_azure_clients():
+    """Initializes Azure AI Project Client:
+    1. If user is signed in via Entra ID, uses their session-isolated short-lived token.
+    2. Else if server environment has FOUNDRY_ENDPOINT, uses DefaultAzureCredential.
+    3. Else returns None (Interactive Demo Mode).
+    """
     load_dotenv()
     env_endpoint = (os.getenv("FOUNDRY_ENDPOINT") or "").strip()
-    env_agent = (os.getenv("AGENT_NAME") or "").strip()
-    env_model = (os.getenv("MODEL_DEPLOYMENT_NAME") or "").strip()
+    agent_name = (os.getenv("AGENT_NAME") or "").strip() or "Text-Analysis-Agent"
+    model = (os.getenv("MODEL_DEPLOYMENT_NAME") or "").strip() or "gpt-4o"
 
-    # Prioritize values entered in the frontend fields, then fall back to .env, then sensible defaults
-    foundry_endpoint = (custom_endpoint or "").strip() or env_endpoint
-    agent_name = (custom_agent or "").strip() or env_agent or "Text-Analysis-Agent"
-    model = (custom_model or "").strip() or env_model or "gpt-4o"
+    # Check for user-provided endpoint in active session
+    user_endpoint = st.session_state.get("user_foundry_endpoint", "").strip() or env_endpoint
 
-    if not foundry_endpoint:
-        return (
-            None,
-            None,
-            agent_name,
-            model,
-            "No Foundry Endpoint found. Please enter your Foundry Endpoint in the sidebar fields or in your .env file."
-        )
+    # 1. Active Entra ID Session Token
+    if "entra_token" in st.session_state and st.session_state["entra_token"]:
+        token = st.session_state["entra_token"]
+        expires_in = st.session_state.get("entra_expires_in", 3600)
+        login_time = st.session_state.get("entra_login_time", time.time())
+        remaining = int(expires_in - (time.time() - login_time))
 
-    try:
-        project_client = AIProjectClient(
-            endpoint=foundry_endpoint,
-            credential=DefaultAzureCredential(),
-        )
-        openai_client = project_client.get_openai_client()
-        return project_client, openai_client, agent_name, model, None
-    except Exception as e:
-        return None, None, agent_name, model, str(e)
+        if remaining <= 0:
+            st.session_state.pop("entra_token", None)
+            st.session_state.pop("entra_user", None)
+            return None, None, agent_name, model, "Entra ID temporary token expired. Please sign in again."
+
+        if not user_endpoint:
+            return None, None, agent_name, model, "Signed in via Entra ID! Please enter your Foundry Project Endpoint."
+
+        try:
+            credential = EntraTokenCredential(token, expires_on=int(time.time() + remaining))
+            project_client = AIProjectClient(
+                endpoint=user_endpoint,
+                credential=credential,
+            )
+            openai_client = project_client.get_openai_client()
+            return project_client, openai_client, agent_name, model, None
+        except Exception as e:
+            return None, None, agent_name, model, f"Entra ID Client Error: {e}"
+
+    # 2. Server Environment Fallback (Local az login or Managed Identity)
+    if env_endpoint:
+        try:
+            project_client = AIProjectClient(
+                endpoint=env_endpoint,
+                credential=DefaultAzureCredential(),
+            )
+            openai_client = project_client.get_openai_client()
+            return project_client, openai_client, agent_name, model, None
+        except Exception as e:
+            return None, None, agent_name, model, str(e)
+
+    return None, None, agent_name, model, "No active Azure session or server configuration found."
 
 
 
@@ -703,6 +769,32 @@ def run_agent_turn(openai_client, model: str, agent_name: str, conversation_hist
 
 
 
+# Handle Microsoft Entra ID OAuth Redirect Callback
+entra_client_id, entra_tenant_id, entra_secret, entra_redirect_uri, entra_scopes = get_entra_config()
+query_params = st.query_params
+if "code" in query_params and entra_client_id:
+    auth_code = query_params.get("code")
+    msal_app = get_msal_app()
+    if msal_app and auth_code:
+        try:
+            token_response = msal_app.acquire_token_by_authorization_code(
+                code=auth_code,
+                scopes=entra_scopes,
+                redirect_uri=entra_redirect_uri,
+            )
+            if "access_token" in token_response:
+                st.session_state["entra_token"] = token_response["access_token"]
+                st.session_state["entra_expires_in"] = token_response.get("expires_in", 3600)
+                st.session_state["entra_login_time"] = time.time()
+                st.session_state["entra_user"] = token_response.get("id_token_claims", {})
+                st.session_state.pop("entra_error", None)
+            else:
+                st.session_state["entra_error"] = token_response.get("error_description", "Authentication failed.")
+        except Exception as ex:
+            st.session_state["entra_error"] = str(ex)
+        st.query_params.clear()
+        st.rerun()
+
 # Top Header
 st.markdown("""
 <div class="studio-header">
@@ -713,51 +805,86 @@ st.markdown("""
 
 # Sidebar - Settings and Presets
 with st.sidebar:
-    st.markdown("### Connection Settings")
+    st.markdown("### Authentication & Access")
 
-    load_dotenv()
-    env_endpoint = (os.getenv("FOUNDRY_ENDPOINT") or "").strip()
-    env_agent = (os.getenv("AGENT_NAME") or "").strip()
-    env_model = (os.getenv("MODEL_DEPLOYMENT_NAME") or "").strip()
-    has_env = bool(env_endpoint)
+    is_entra_logged_in = bool(st.session_state.get("entra_token"))
+    msal_app = get_msal_app()
 
-    expander_title = "Azure Credentials (Foundry)" if has_env else "Azure Credentials (Required)"
-    with st.expander(expander_title, expanded=not has_env):
-        if not has_env:
-            st.caption("Enter your Azure Foundry project credentials below:")
-        else:
-            st.caption("Using configuration from `.env`. Enter values here only if you wish to override:")
+    if is_entra_logged_in:
+        user_claims = st.session_state.get("entra_user", {})
+        display_name = user_claims.get("name") or user_claims.get("preferred_username") or "Microsoft User"
+        user_email = user_claims.get("preferred_username") or user_claims.get("email") or ""
+        
+        login_time = st.session_state.get("entra_login_time", time.time())
+        expires_in = st.session_state.get("entra_expires_in", 3600)
+        mins_remaining = max(1, int((expires_in - (time.time() - login_time)) / 60))
 
-        custom_endpoint_input = st.text_input(
-            "Foundry Endpoint:",
-            value="",
+        st.markdown(f"""
+        <div style="background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+            <div style="font-weight: 600; color: #15803D; font-size: 13.5px; margin-bottom: 2px;">⚡ Signed In via Entra ID</div>
+            <div style="font-size: 13px; color: #0F172A; font-weight: 500;">{html.escape(display_name)}</div>
+            <div style="font-size: 11.5px; color: #64748B;">{html.escape(user_email)}</div>
+            <div style="font-size: 11px; color: #16A34A; margin-top: 6px;">⏱️ Temporary token expires in ~{mins_remaining} min</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Allow user to specify their own Foundry Project Endpoint during their active session
+        env_endpoint = (os.getenv("FOUNDRY_ENDPOINT") or "").strip()
+        user_endpoint = st.text_input(
+            "Your Foundry Endpoint:",
+            value=st.session_state.get("user_foundry_endpoint", env_endpoint),
             placeholder="https://<resource>.services.ai.azure.com/api/projects/<id>",
-            type="password",
-            help="Project endpoint from Azure AI Foundry overview"
+            help="Your personal Azure AI Foundry project endpoint. Stored only in volatile session memory."
         )
-        custom_agent_input = st.text_input(
-            "Agent Name:",
-            value="",
-            placeholder="Text-Analysis-Agent"
+        st.session_state["user_foundry_endpoint"] = user_endpoint
+
+        if st.button("Sign Out", use_container_width=True):
+            st.session_state.pop("entra_token", None)
+            st.session_state.pop("entra_user", None)
+            st.session_state.pop("user_foundry_endpoint", None)
+            st.rerun()
+
+    elif msal_app:
+        auth_url = msal_app.get_authorization_request_url(
+            scopes=entra_scopes,
+            redirect_uri=entra_redirect_uri,
         )
-        custom_model_input = st.text_input(
-            "Model Deployment:",
-            value="",
-            placeholder="gpt-4o"
+        st.markdown("""
+        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; padding: 14px; margin-bottom: 10px;">
+            <div style="font-weight: 600; color: #0F172A; font-size: 13.5px; margin-bottom: 4px;">Sign in with Azure</div>
+            <div style="font-size: 12px; color: #64748B; line-height: 1.4;">
+                Authenticate with your Microsoft Azure account. Zero permanent API keys are stored.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.link_button(
+            "🔑 Sign in with Microsoft",
+            auth_url,
+            type="primary",
+            use_container_width=True,
+            help="Opens Microsoft Entra ID sign-in"
         )
 
-    # Initialize Azure clients with frontend inputs (or fallback to .env)
-    project_client, openai_client, agent_name, model, init_error = get_azure_clients(
-        custom_endpoint=custom_endpoint_input or None,
-        custom_agent=custom_agent_input or None,
-        custom_model=custom_model_input or None
-    )
+        if st.session_state.get("entra_error"):
+            st.error(st.session_state["entra_error"])
+
+    else:
+        with st.expander("ℹ️ Enable Entra ID SSO", expanded=False):
+            st.caption(
+                "To enable 'Sign in with Microsoft' for external users, set `ENTRA_CLIENT_ID` in your server `.env` file."
+            )
+
+    # Initialize Azure clients (Entra token or Server Fallback or Demo)
+    project_client, openai_client, agent_name, model, init_error = get_active_azure_clients()
 
     if openai_client:
-        st.markdown("""
+        conn_label = "⚡ Live Azure AI Foundry (Entra ID)" if is_entra_logged_in else "⚡ Live Azure AI Foundry"
+        conn_sub = "Authenticated via temporary Entra ID token." if is_entra_logged_in else "Authenticated via server environment."
+        st.markdown(f"""
         <div style="background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
-            <div style="font-weight: 600; color: #15803D; font-size: 14px; margin-bottom: 2px;">⚡ Live Azure AI Foundry</div>
-            <div style="font-size: 12.5px; color: #16A34A; line-height: 1.4;">Connected to live Azure cloud instance.</div>
+            <div style="font-weight: 600; color: #15803D; font-size: 13.5px; margin-bottom: 2px;">{conn_label}</div>
+            <div style="font-size: 12px; color: #16A34A; line-height: 1.4;">{conn_sub}</div>
         </div>
         """, unsafe_allow_html=True)
         st.write(f"Agent: **{agent_name}**")
@@ -765,8 +892,8 @@ with st.sidebar:
     else:
         st.markdown("""
         <div style="background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
-            <div style="font-weight: 600; color: #1D4ED8; font-size: 14px; margin-bottom: 2px;">🟢 Interactive Demo Mode</div>
-            <div style="font-size: 12.5px; color: #2563EB; line-height: 1.4;">Running accurate Azure Language & GPT-4o simulation. Enter credentials above to switch to live cloud execution.</div>
+            <div style="font-weight: 600; color: #1D4ED8; font-size: 13.5px; margin-bottom: 2px;">🟢 Interactive Demo Mode</div>
+            <div style="font-size: 12px; color: #2563EB; line-height: 1.4;">Running simulated engine. Sign in with Microsoft above or configure server .env to run on live Azure.</div>
         </div>
         """, unsafe_allow_html=True)
         st.write(f"Agent: **{agent_name} (Simulated)**")

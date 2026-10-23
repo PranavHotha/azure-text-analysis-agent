@@ -1,0 +1,119 @@
+========================================================================
+MICROSOFT ENTRA ID (AZURE AD) MULTI-TENANT AUTHENTICATION GUIDE
+========================================================================
+
+This guide explains how Microsoft Entra ID authentication is configured
+for the Azure Text Analysis Agent, enabling any user on any device to
+securely use their own Azure resources with zero permanent keys stored.
+
+
+------------------------------------------------------------------------
+1. ARCHITECTURE OVERVIEW: ZERO-SERVER-TRUST & TEMPORARY TOKENS
+------------------------------------------------------------------------
+
+Traditional API key entry creates major security risks (memory snooping,
+accidental leakage, lack of revocation). Entra ID solves this:
+
+1. End users open the web app from any device (phone, laptop, tablet).
+2. Users click "Sign in with Microsoft" and authenticate directly on
+   Microsoft's official login portal (login.microsoftonline.com).
+3. Microsoft issues a temporary, short-lived OAuth Bearer Token (60 min).
+4. The token exists ONLY in volatile session RAM (st.session_state).
+5. When the user closes the browser or clicks "Sign Out", the token
+   is immediately destroyed.
+6. The hosting server never stores, logs, or saves any user passwords or keys.
+
+
+------------------------------------------------------------------------
+2. AZURE APP REGISTRATION (ONE-TIME SETUP - 100% FREE)
+------------------------------------------------------------------------
+
+1. Sign in to the Azure Portal:
+   https://portal.azure.com
+
+2. In the top search bar, search for: "Microsoft Entra ID"
+
+3. In the left navigation menu, click: "App registrations"
+
+4. Click: "+ New registration"
+   - Name: Text-Analysis-Agent
+   - Supported account types: Select option 3:
+     "Accounts in any organizational directory (Any Microsoft Entra ID
+      tenant - Multitenant) and personal Microsoft accounts"
+   - Redirect URI (Platform: Web):
+     http://localhost:8501
+
+5. Click "Register".
+
+6. In the left menu of the newly created App Registration, click "Authentication":
+   - Under "Redirect URIs", click "Add URI" to add your live production URL:
+     URI 1: http://localhost:8501
+     URI 2: https://ai-text-analysis-bb4n.onrender.com/
+   - Click "Save" at the top.
+
+7. Click "Overview" in the left menu:
+   - Copy the "Application (client) ID" (a GUID like 2078b9c6-6f3f-49f0-9d5d-e2860d5a71d3).
+   - Note: This ID is public and permanent. It never changes or expires.
+
+
+------------------------------------------------------------------------
+3. PRODUCTION DEPLOYMENT (RENDER CONFIGURATION)
+------------------------------------------------------------------------
+
+End users do NOT need Python or a .env file on their devices. Render runs
+the server and supplies the configuration via Environment Variables.
+
+In your Render Dashboard (https://dashboard.render.com):
+1. Open your Web Service (e.g. ai-text-analysis-bb4n).
+2. Go to the "Environment" tab.
+3. Add the following environment variables:
+
+   KEY                    VALUE
+   --------------------   ---------------------------------------------
+   ENTRA_CLIENT_ID        <your-copied-application-client-id>
+   ENTRA_REDIRECT_URI     https://ai-text-analysis-bb4n.onrender.com/
+   PYTHON_VERSION         3.12.0 (or matching your environment)
+
+4. Click "Save, rebuild, and deploy".
+
+
+------------------------------------------------------------------------
+4. LOCAL DEVELOPMENT CONFIGURATION (FOR YOUR LAPTOP ONLY)
+------------------------------------------------------------------------
+
+To test "Sign in with Microsoft" while running locally on your laptop:
+
+1. Open `agent/.env` (or copy from `agent/.env.example`).
+2. Add your Application Client ID:
+
+   ENTRA_CLIENT_ID="2078b9c6-6f3f-49f0-9d5d-e2860d5a71d3"
+   ENTRA_TENANT_ID="common"
+   ENTRA_REDIRECT_URI="http://localhost:8501"
+
+3. Start Streamlit in your terminal:
+   cd c:\AZURE-PROJECTS\text-analysis-agent\agent
+   .\labenv\Scripts\Activate.ps1
+   streamlit run app.py
+
+4. Visit http://localhost:8501 in your browser.
+   The sidebar will display the official "Sign in with Microsoft" button.
+
+
+------------------------------------------------------------------------
+5. HOW END-USERS USE THE APPLICATION
+------------------------------------------------------------------------
+
+When any person visits your live URL:
+1. They visit: https://ai-text-analysis-bb4n.onrender.com/
+2. They see the Text Analysis Studio and click "Sign in with Microsoft".
+3. They log in with their corporate or personal Microsoft account.
+4. Once authenticated, the app displays:
+   - User Name & Email address
+   - Live countdown of their temporary token (expires in ~60 min)
+   - "Your Foundry Endpoint" field where they enter their project endpoint:
+     https://<their-resource>.services.ai.azure.com/api/projects/<id>
+5. They can run PII redaction and sentiment analysis using their own Azure quotas.
+6. When done, they click "Sign Out" or close their browser to immediately
+   wipe their credentials from server RAM.
+
+========================================================================

@@ -76,9 +76,8 @@ PART 2: LOCAL ENVIRONMENT SETUP
    AGENT_NAME="<your_foundry_agent_name>"
    MODEL_DEPLOYMENT_NAME="<your_model_deployment_name>"
 
-   Note: If you run the Streamlit web studio without a .env file, you can
-   also paste your Foundry Endpoint directly into the sidebar fields in the
-   browser UI!
+   Note: Configure your project details in `.env`. The web studio securely
+   loads these settings on the server side without exposing them in the UI.
 
 
 ------------------------------------------------------------------------
@@ -144,6 +143,36 @@ PART 5: TROUBLESHOOTING & COMMON QUESTIONS
 3. Error: Azure Client is not connected / 401 Unauthorized
    Cause: You are not signed in or credentials are missing.
    Fix:
-   - Run 'az login' in your IDE terminal.
-   - Ensure your Foundry Endpoint is set in .env or pasted into the sidebar.
+   - Run 'az login' in your IDE terminal, or sign in via Microsoft Entra ID in the web UI.
+   - Ensure your Foundry Endpoint is set in your .env or session endpoint field.
+
+
+------------------------------------------------------------------------
+PART 6: MULTI-TENANT ENTRA ID (AZURE AD) AUTHENTICATION
+------------------------------------------------------------------------
+
+To enable "Sign in with Microsoft" so any user can use their own Azure
+resources securely with temporary, short-lived tokens:
+
+1. Register an App in Microsoft Entra ID (portal.azure.com):
+   - Name: Azure-Text-Analysis-Agent
+   - Supported Account Types: "Accounts in any organizational directory
+     (Any Microsoft Entra ID tenant - Multitenant) and personal Microsoft accounts"
+   - Redirect URI: Web -> http://localhost:8501 (and your live domain)
+
+2. Add API Permissions:
+   - Microsoft Cognitive Services / Azure AI Foundry -> user_impersonation (Delegated)
+
+3. Add Client Secret (Optional for Confidential Clients):
+   - Under Certificates & Secrets, create a new client secret.
+
+4. Add to .env:
+   ENTRA_CLIENT_ID="<your-app-registration-client-id>"
+   ENTRA_TENANT_ID="common"
+   ENTRA_CLIENT_SECRET="<optional-client-secret>"
+   ENTRA_REDIRECT_URI="http://localhost:8501"
+
+5. Launch Streamlit:
+   Users will now see a branded "Sign in with Microsoft" button.
+   Tokens are stored strictly in volatile session RAM and expire in 60 minutes.
 ========================================================================
