@@ -379,10 +379,63 @@ st.markdown("""
         font-size: 0.68rem;
         font-weight: 600;
         background: #F1F5F9;
-        color: #64748B;
-        padding: 2px 7px;
-        border-radius: 4px;
-        border: 1px solid #E2E8F0;
+    /* Sign In with Microsoft Link Button */
+    .ms-signin-button {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 10px !important;
+        background: linear-gradient(135deg, #0078D4 0%, #00539C 100%) !important;
+        color: #FFFFFF !important;
+        text-decoration: none !important;
+        padding: 11px 18px !important;
+        border-radius: 8px !important;
+        font-weight: 600 !important;
+        font-size: 0.92rem !important;
+        letter-spacing: -0.01em !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        box-shadow: 0 2px 8px rgba(0, 120, 212, 0.28) !important;
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        cursor: pointer !important;
+    }
+    .ms-signin-button:hover {
+        background: linear-gradient(135deg, #106EBE 0%, #004578 100%) !important;
+        box-shadow: 0 4px 14px rgba(0, 120, 212, 0.40) !important;
+        transform: translateY(-1px) !important;
+        color: #FFFFFF !important;
+        text-decoration: none !important;
+    }
+    .ms-signin-button:active {
+        transform: translateY(0) !important;
+        box-shadow: 0 1px 4px rgba(0, 120, 212, 0.20) !important;
+    }
+
+    /* Sign Out Button (Sleek Danger/Soft Red Hover) */
+    .signout-container {
+        margin-top: 10px;
+    }
+    .signout-container button {
+        background: #FFFFFF !important;
+        border: 1px solid #E2E8F0 !important;
+        color: #64748B !important;
+        border-radius: 8px !important;
+        font-weight: 600 !important;
+        font-size: 0.88rem !important;
+        padding: 9px 16px !important;
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        cursor: pointer !important;
+    }
+    .signout-container button:hover {
+        background: #FFF1F2 !important;
+        border-color: #FECDD3 !important;
+        color: #E11D48 !important;
+        box-shadow: 0 2px 8px rgba(225, 29, 72, 0.15) !important;
+        transform: translateY(-1px) !important;
+    }
+    .signout-container button:active {
+        transform: translateY(0) !important;
+        box-shadow: none !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -949,10 +1002,13 @@ with st.sidebar:
                 st.session_state["user_model_name"] = form_model.strip()
                 st.rerun()
 
-        if st.button("Sign Out", use_container_width=True):
+        # Sign Out with sleek danger-hover styling
+        st.markdown('<div class="signout-container">', unsafe_allow_html=True)
+        if st.button("🚪 Sign Out & Clear Session", use_container_width=True):
             for key in ("entra_token", "entra_user", "user_foundry_endpoint", "user_agent_name", "user_model_name"):
                 st.session_state.pop(key, None)
             st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
 
     elif msal_app:
         auth_url = msal_app.get_authorization_request_url(
@@ -968,16 +1024,11 @@ with st.sidebar:
         </div>
         """, unsafe_allow_html=True)
 
-        # Plain anchor in the same tab: avoids Edge pop-up blocking of new tabs
-        # and keeps the OAuth redirect in the user's current tab.
+        # Enhanced Microsoft Sign In Link Button
         safe_auth_url = html.escape(auth_url, quote=True)
         st.markdown(f"""
-        <a href="{safe_auth_url}" target="_self" rel="noopener"
-           style="display: flex; align-items: center; justify-content: center; gap: 8px;
-                  background-color: #0078D4; color: #FFFFFF !important; text-decoration: none;
-                  padding: 9px 14px; border-radius: 6px; font-weight: 600; font-size: 13px;
-                  width: 100%; box-sizing: border-box;">
-            <svg width="16" height="16" viewBox="0 0 21 21"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>
+        <a href="{safe_auth_url}" target="_self" rel="noopener" class="ms-signin-button">
+            <svg width="17" height="17" viewBox="0 0 21 21"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>
             Sign in with Microsoft
         </a>
         """, unsafe_allow_html=True)
