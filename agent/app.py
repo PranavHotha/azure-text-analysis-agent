@@ -730,40 +730,58 @@ def simulate_agent_turn(model: str, agent_name: str, conversation_history: list)
 
 
 def run_agent_turn(openai_client, model: str, agent_name: str, conversation_history: list):
-    """Sends the conversation history directly to the authentic Azure AI Foundry agent, or simulated engine if offline"""
+    """Sends the conversation history to the Azure AI Foundry agent, falling back to direct Azure OpenAI with in-code SYSTEM_MESSAGE if agent_reference is not recognized by the endpoint."""
     if not openai_client:
         return simulate_agent_turn(model, agent_name, conversation_history)
 
     try:
         start_time = time.time()
-        response = openai_client.responses.create(
-            model=model,
-            input=conversation_history,
-            extra_body={"agent_reference": {"name": agent_name, "type": "agent_reference"}},
-        )
-        elapsed = round(time.time() - start_time, 2)
 
-        if response.output_text:
-            cleaned = sanitize_pure_text(response.output_text)
-            return cleaned, elapsed, None
+        # 1. Try Azure AI Foundry Agent (Responses API with agent_reference)
+        try:
+            response = openai_client.responses.create(
+                model=model,
+                input=conversation_history,
+                extra_body={"agent_reference": {"name": agent_name, "type": "agent_reference"}},
+            )
+            elapsed = round(time.time() - start_time, 2)
 
-        # Check for tool / MCP outputs
-        tool_outputs = []
-        for item in getattr(response, "output", []):
-            item_type = getattr(item, "type", None)
-            if item_type == "mcp_approval_request":
-                tool_name = getattr(item, "name", "tool")
-                return None, elapsed, (
-                    f"Tool '{tool_name}' requires approval in Azure AI Foundry. Set approval to 'Always auto-approve all tools' in the portal."
+            if getattr(response, "output_text", None):
+                cleaned = sanitize_pure_text(response.output_text)
+                return cleaned, elapsed, None
+
+            # Check for tool / MCP outputs
+            tool_outputs = []
+            for item in getattr(response, "output", []):
+                item_type = getattr(item, "type", None)
+                if item_type == "mcp_approval_request":
+                    tool_name = getattr(item, "name", "tool")
+                    return None, elapsed, (
+                        f"Tool '{tool_name}' requires approval in Azure AI Foundry. Set approval to 'Always auto-approve all tools' in the portal."
+                    )
+                elif item_type == "mcp_call" and getattr(item, "output", None):
+                    tool_outputs.append(str(item.output))
+
+            if tool_outputs:
+                raw_combined = "\n\n".join(tool_outputs)
+                return sanitize_pure_text(raw_combined), elapsed, None
+
+            return "(No output returned by agent)", elapsed, None
+
+        except Exception as agent_err:
+            # 2. If the endpoint doesn't support agent_reference, fall back to direct Azure OpenAI using in-code SYSTEM_MESSAGE!
+            err_str = str(agent_err).lower()
+            if "agent_reference" in err_str or "unknown_parameter" in err_str:
+                messages = [{"role": "system", "content": SYSTEM_MESSAGE}] + conversation_history
+                chat_resp = openai_client.chat.completions.create(
+                    model=model,
+                    messages=messages,
                 )
-            elif item_type == "mcp_call" and getattr(item, "output", None):
-                tool_outputs.append(str(item.output))
-
-        if tool_outputs:
-            raw_combined = "\n\n".join(tool_outputs)
-            return sanitize_pure_text(raw_combined), elapsed, None
-
-        return "(No output returned by agent)", elapsed, None
+                elapsed = round(time.time() - start_time, 2)
+                content = chat_resp.choices[0].message.content or ""
+                return sanitize_pure_text(content), elapsed, None
+            else:
+                raise agent_err
 
     except Exception as e:
         return None, 0, str(e)
