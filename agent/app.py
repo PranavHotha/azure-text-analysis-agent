@@ -772,6 +772,16 @@ def run_agent_turn(openai_client, model: str, agent_name: str, conversation_hist
 # Handle Microsoft Entra ID OAuth Redirect Callback
 entra_client_id, entra_tenant_id, entra_secret, entra_redirect_uri, entra_scopes = get_entra_config()
 query_params = st.query_params
+
+# Microsoft redirects back with ?error=... when sign-in or consent fails
+if "error" in query_params:
+    err_code = query_params.get("error", "")
+    err_desc = query_params.get("error_description", "")
+    st.session_state["entra_error"] = f"{err_code}: {err_desc}"
+    print(f"[ENTRA] Redirect error -> {err_code}: {err_desc}", file=sys.stderr)
+    st.query_params.clear()
+    st.rerun()
+
 if "code" in query_params and entra_client_id:
     auth_code = query_params.get("code")
     msal_app = get_msal_app()
@@ -788,10 +798,14 @@ if "code" in query_params and entra_client_id:
                 st.session_state["entra_login_time"] = time.time()
                 st.session_state["entra_user"] = token_response.get("id_token_claims", {})
                 st.session_state.pop("entra_error", None)
+                print("[ENTRA] Sign-in succeeded", file=sys.stderr)
             else:
-                st.session_state["entra_error"] = token_response.get("error_description", "Authentication failed.")
+                err = f"{token_response.get('error', '')}: {token_response.get('error_description', 'Authentication failed.')}"
+                st.session_state["entra_error"] = err
+                print(f"[ENTRA] Token exchange failed -> {err}", file=sys.stderr)
         except Exception as ex:
             st.session_state["entra_error"] = str(ex)
+            print(f"[ENTRA] Token exchange exception -> {ex}", file=sys.stderr)
         st.query_params.clear()
         st.rerun()
 
@@ -802,6 +816,10 @@ st.markdown("""
     <div class="studio-subtitle">Enterprise Data Privacy, PII Redaction, and Sentiment Intelligence powered by Azure AI Foundry and Language Tools.</div>
 </div>
 """, unsafe_allow_html=True)
+
+# Show sign-in failures prominently (not just in the sidebar)
+if st.session_state.get("entra_error") and not st.session_state.get("entra_token"):
+    st.error(f"Microsoft sign-in failed: {st.session_state['entra_error']}")
 
 # Sidebar - Settings and Presets
 with st.sidebar:
@@ -858,13 +876,19 @@ with st.sidebar:
         </div>
         """, unsafe_allow_html=True)
 
-        st.link_button(
-            "🔑 Sign in with Microsoft",
-            auth_url,
-            type="primary",
-            use_container_width=True,
-            help="Opens Microsoft Entra ID sign-in"
-        )
+        # Plain anchor in the same tab: avoids Edge pop-up blocking of new tabs
+        # and keeps the OAuth redirect in the user's current tab.
+        safe_auth_url = html.escape(auth_url, quote=True)
+        st.markdown(f"""
+        <a href="{safe_auth_url}" target="_self" rel="noopener"
+           style="display: flex; align-items: center; justify-content: center; gap: 8px;
+                  background-color: #0078D4; color: #FFFFFF !important; text-decoration: none;
+                  padding: 9px 14px; border-radius: 6px; font-weight: 600; font-size: 13px;
+                  width: 100%; box-sizing: border-box;">
+            <svg width="16" height="16" viewBox="0 0 21 21"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>
+            Sign in with Microsoft
+        </a>
+        """, unsafe_allow_html=True)
 
         if st.session_state.get("entra_error"):
             st.error(st.session_state["entra_error"])
