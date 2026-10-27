@@ -29,13 +29,22 @@ def main():
 
         # Use the agent to get a response
         prompt = input("User prompt: ")
-        response = openai_client.responses.create(
-            model=model,
-            input=[{"role": "user", "content": prompt}],
-            extra_body={"agent_reference": {"name": agent_name, "type": "agent_reference"}},
-        )
-
-        print(f"{agent_name}: {response.output_text}")
+        try:
+            response = openai_client.responses.create(
+                model=model,
+                input=[{"role": "user", "content": prompt}],
+                extra_body={"agent_reference": {"name": agent_name, "type": "agent_reference"}},
+            )
+            print(f"{agent_name}: {response.output_text}")
+        except Exception as err:
+            if "agent_reference" in str(err) or "unknown_parameter" in str(err):
+                response = openai_client.chat.completions.create(
+                    model=model,
+                    messages=[{"role": "user", "content": prompt}],
+                )
+                print(f"{agent_name}: {response.choices[0].message.content}")
+            else:
+                raise err
 
         
     except Exception as ex:
