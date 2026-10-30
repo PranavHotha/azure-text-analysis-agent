@@ -1,0 +1,7 @@
+agent workflow.txt
+
+agent workflow.svg
+frontend/.env
+agent/.env
+fixed_issues.txt
+__pycache__/
