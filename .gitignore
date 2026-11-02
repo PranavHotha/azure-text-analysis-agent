@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.env
+.env
+agent/.env
+
+# Virtual environments
+venv/
+.venv/
+env/
+labenv/
+
+# Node
+node_modules/
+text-agent-app/node_modules/
+text-agent-app/dist/
+text-agent-app/dist-ssr/
+*.log
+
+# Misc
+.DS_Store
