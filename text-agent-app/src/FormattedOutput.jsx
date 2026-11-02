@@ -58,7 +58,7 @@ export default function FormattedOutput({ text, task = 'redact', isChat = false 
 
     // Replace [Category] with styled monochrome tag badge
     html = html.replace(PII_TAG_REGEX, (match) => {
-      const cleanCategory = match.replace(/[\[\]]/g, '');
+      const cleanCategory = match.replace(/[[\]]/g, '');
       return `<span class="inline-pii-badge"><span class="pii-badge-dot"></span>${cleanCategory}</span>`;
     });
 
@@ -154,7 +154,7 @@ export default function FormattedOutput({ text, task = 'redact', isChat = false 
             {piiTagsFound.map((tag) => (
               <span key={tag} className="legend-chip">
                 <Tag size={11} />
-                {tag.replace(/[\[\]]/g, '')}
+                {tag.replace(/[[\]]/g, '')}
               </span>
             ))}
           </div>

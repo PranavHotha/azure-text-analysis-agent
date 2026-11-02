@@ -140,11 +140,9 @@ def get_azure_client():
         return None
 
     try:
-        bound = _request_token.get()
-        cred = MsalAzureCredential() if bound else DefaultAzureCredential()
         _project_client = AIProjectClient(
             endpoint=foundry_endpoint,
-            credential=cred,
+            credential=MsalAzureCredential(),
         )
         _openai_client = _project_client.get_openai_client()
         return _openai_client

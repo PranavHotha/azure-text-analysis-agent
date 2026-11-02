@@ -5,123 +5,10 @@ import FormattedOutput from './FormattedOutput';
 import './modern-button.css';
 import './App.css';
 
-const DEFAULT_SYSTEM_INSTRUCTIONS = `You are an Azure AI Text Analysis Agent specializing in Data Privacy, PII Redaction, Named Entity Recognition (NER), and Sentiment Intelligence. Follow the exact output format below based on the requested function:
-
-1. PII REDACTION (Redact PII)
-- Replace every piece of Personally Identifiable Information in the input text using ONLY these standardized bracketed tags:
-  [Person], [Phone Number], [Email], [Address], [SSN], [Credit Card Number], [Account Number], [Date], [Organization], [Location], [IP Address], [URL], [Password], [Passport Number]
-- Output Structure:
-  Redacted Text:
-  (Full original text with sensitive values replaced inline by the bracketed tags above)
-
-  Redaction Summary:
-  - Total Redactions: (Total count of redacted items)
-  - Categories Detected: (Comma-separated list of bracketed tags used)
-
-2. SENTIMENT ANALYSIS (Analyze Sentiment)
-- Evaluate emotional tone, polarity, and key drivers.
-- Output Structure:
-  Overall Sentiment: (POSITIVE, NEGATIVE, NEUTRAL, or MIXED)
-
-  Confidence Scores:
-  - Positive: (0-100)%
-  - Neutral: (0-100)%
-  - Negative: (0-100)%
-
-  Assessment:
-  (1-2 sentence executive summary of the overall tone)
-
-  Key Drivers:
-  - Positive Drivers: (Key phrases or points driving positive sentiment, or None)
-  - Negative Drivers: (Key phrases or points driving negative sentiment, or None)
-
-3. ENTITY EXTRACTION (Extract Entities)
-- Identify and group all named entities into structured categories.
-- Output Structure:
-  People & Identifiers:
-  - Name / Role: (Details)
-
-  Organizations & Brands:
-  - Organization: (Context or Contact)
-
-  Locations & Addresses:
-  - Location: (Address, Airport, or City)
-
-  Dates, Numbers & Reference Codes:
-  - Type: (Flight Number, Confirmation Code, Account Number, or Date)`;
-
 const SAMPLE_TEXTS = {
   pii: "My name is Sarah Miller, my phone number is 555-0199, and I live at 123 Main St, New York. Please reach out to me regarding account 4111-2222-3333-4444.",
   entities: "From: Delta Air Lines (delta-notifications@delta.com) | Passenger Alexander 'Alex' Vance booked flight DL1234 from Los Angeles (LAX) to New York (JFK) on Seat 12A. Confirmation #HJK992. Billing address: 4500 Wilshire Blvd, Los Angeles, CA 90010.",
   sentiment: "I was absolutely thrilled with how fast the order arrived at my doorstep by Wednesday! However, the customer support representative was very rude and hung up on me when I asked for a return label.",
-};
-
-const SAMPLE_OUTPUTS = {
-  redact: `### Redacted Text
-My name is [Person], my phone number is [Phone Number], and I live at [Address]. Please reach out to me regarding account [Credit Card Number].
-
-### Redaction Summary
-- **Total Redactions**: 4
-- **Categories Detected**: [Person], [Phone Number], [Address], [Credit Card Number]`,
-
-  entities: `### People & Identifiers
-- **Passenger**: Alexander 'Alex' Vance
-
-### Organizations & Brands
-- **Delta Air Lines**: Airline carrier (\`delta-notifications@delta.com\`)
-
-### Locations & Addresses
-- **Departure**: Los Angeles (LAX)
-- **Destination**: New York (JFK)
-- **Billing Address**: 4500 Wilshire Blvd, Los Angeles, CA 90010
-
-### Dates, Numbers & Reference Codes
-- **Flight Number**: DL1234
-- **Seat Assignment**: Seat 12A
-- **Confirmation Code**: #HJK992`,
-
-  sentiment: `### Overall Sentiment: MIXED
-
-### Confidence Scores
-- Positive: 48%
-- Neutral: 4%
-- Negative: 48%
-
-### Assessment
-The review expresses strong satisfaction with delivery speed but severe frustration with customer support behavior, resulting in a polarized mixed sentiment.
-
-### Key Drivers
-- **Positive Drivers**: Thrilled with fast delivery arriving by Wednesday
-- **Negative Drivers**: Customer support representative was rude and hung up during a return label inquiry`,
-};
-
-const SAMPLE_CHAT_REPLIES = {
-  "Redact all personal information from: John Doe, phone 555-0192, SSN 123-45-6789, living in Seattle.": `### Redacted Text
-[Person], phone [Phone Number], SSN [SSN], living in [Location].
-
-### Redaction Summary
-- **Total Redactions**: 4
-- **Categories Detected**: [Person], [Phone Number], [SSN], [Location]`,
-
-  "Analyze the sentiment of: I loved the speed of delivery, but the customer support representative was very rude.": `### Overall Sentiment: MIXED
-
-### Confidence Scores
-- Positive: 50%
-- Neutral: 2%
-- Negative: 48%
-
-### Assessment
-The customer praises logistics performance while criticizing support interaction quality.`,
-
-  "Extract passenger, flight, and seat info from: Passenger Mary Lane flying UA402 to Chicago on Seat 14B.": `### People & Identifiers
-- **Passenger**: Mary Lane
-
-### Locations & Addresses
-- **Destination**: Chicago
-
-### Dates, Numbers & Reference Codes
-- **Flight Number**: UA402
-- **Seat Assignment**: Seat 14B`
 };
 
 export default function App() {
@@ -175,15 +62,17 @@ export default function App() {
   const wordCount = inputText.trim() ? inputText.trim().split(/\s+/).length : 0;
   const charCount = inputText.length;
 
-  // Prevent saving or auto-populating fields; fields remain strictly ephemeral in active session
+  // Reset session configuration if user logs out
+  const wasAuthRef = useRef(false);
   useEffect(() => {
-    if (!isAuthenticated && !isLoading) {
+    if (wasAuthRef.current && !isAuthenticated) {
       setFoundryEndpoint('');
       setModelDeployment('');
       setAgentName('');
       setConfigSaved(false);
     }
-  }, [isAuthenticated, isLoading]);
+    wasAuthRef.current = isAuthenticated;
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (chatBottomRef.current) {
@@ -226,15 +115,6 @@ export default function App() {
   // Validation checks for analysis execution
   const isModelConnected = Boolean(foundryEndpoint.trim() && modelDeployment.trim());
   const canRunAnalysis = Boolean(isAuthenticated && isModelConnected);
-
-  // Helper to check if current input matches one of the built-in sample tasks
-  const getBuiltInSampleResult = (textVal, taskVal) => {
-    const trimmed = (textVal || '').trim();
-    if (trimmed === SAMPLE_TEXTS.pii.trim() && taskVal === 'redact') return SAMPLE_OUTPUTS.redact;
-    if (trimmed === SAMPLE_TEXTS.entities.trim() && taskVal === 'entities') return SAMPLE_OUTPUTS.entities;
-    if (trimmed === SAMPLE_TEXTS.sentiment.trim() && taskVal === 'sentiment') return SAMPLE_OUTPUTS.sentiment;
-    return null;
-  };
 
   // Live Analysis Engine
   const runAnalysisWithText = async (textToAnalyze, taskToRun) => {
