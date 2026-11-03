@@ -22,6 +22,7 @@ export default function Sidebar({
   handleConnectTarget,
   handleRunSampleTask,
   sampleTexts,
+  authError,
 }) {
   return (
     <aside className={`sidebar ${sidebarOpen ? 'open' : 'collapsed'}`}>
@@ -172,6 +173,12 @@ export default function Sidebar({
             >
               <span>Sign Out &amp; Disconnect</span>
             </button>
+          )}
+
+          {authError && (
+            <div style={{ color: '#ef4444', fontSize: '11px', marginTop: '6px', lineHeight: '1.4', wordBreak: 'break-word' }}>
+              {authError}
+            </div>
           )}
           <div 
             className={`session-status-badge ${isAuthenticated ? 'active' : 'inactive'}`} 

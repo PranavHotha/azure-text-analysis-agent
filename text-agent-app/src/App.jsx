@@ -31,6 +31,7 @@ export default function App() {
   const isLoading = false;
 
   const [tenantId, setTenantId] = useState('');
+  const [authError, setAuthError] = useState('');
 
   const clearMsalInteractionLocks = () => {
     try {
@@ -54,21 +55,29 @@ export default function App() {
     } catch {}
   };
 
-  const loginWithRedirect = (customTenant) => {
+  const loginWithRedirect = async (customTenant) => {
     const tid = (customTenant || tenantId).trim();
-    if (!tid) return;
+    if (!tid) {
+      setAuthError('Please enter a valid Azure Tenant ID.');
+      return;
+    }
 
+    setAuthError('');
     clearMsalInteractionLocks();
 
     const req = {
       ...loginRequest,
       authority: `https://login.microsoftonline.com/${tid}`,
+      redirectUri: window.location.origin,
     };
 
-    instance.loginRedirect(req).catch((err) => {
+    try {
+      await instance.loginRedirect(req);
+    } catch (err) {
       console.error("Login redirect failed:", err);
+      setAuthError(err?.message || String(err));
       clearMsalInteractionLocks();
-    });
+    }
   };
 
   const logout = () => {
@@ -402,6 +411,7 @@ export default function App() {
         handleConnectTarget={handleConnectTarget}
         handleRunSampleTask={handleRunSampleTask}
         sampleTexts={SAMPLE_TEXTS}
+        authError={authError}
       />
 
       {/* ---------------------------------------------------------
