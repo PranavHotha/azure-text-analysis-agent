@@ -372,7 +372,7 @@ export default function App() {
 
         {/* TAB 1: TEXT ANALYSIS AGENT STUDIO */}
         {activeTab === 'agent' && (
-          <StudioPage
+          <AgentPage
             selectedTask={selectedTask}
             setSelectedTask={setSelectedTask}
             inputText={inputText}
