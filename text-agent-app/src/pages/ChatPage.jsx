@@ -39,15 +39,15 @@ export default function ChatPage({
         </div>
         <h2 className="assistant-hero-title">Text Intelligence Assistant</h2>
         <p className="assistant-hero-desc">
-          Connected to <strong>{agentName || 'Text-Analysis-Agent'}</strong> {modelDeployment ? `(${modelDeployment})` : ''} with direct access to Azure Language MCP tools. Type any message or query below to start.
+          Connected to <strong>{agentName || 'Text-Analysis-Agent'}</strong> {modelDeployment ? `(${modelDeployment})` : ''} via Azure AI Foundry. Type any message or query below to start.
         </p>
         <div className="assistant-status-row">
           <span className="live-pill">
             <span className="live-dot-pulse"></span>
-            MCP Language Pipeline Active
+            Language Intelligence Active
           </span>
           <span className="agent-target-pill">
-            Target: {modelDeployment || 'Azure GPT-4.1'}
+            Target: {modelDeployment || 'Azure AI Foundry'}
           </span>
         </div>
       </div>
