@@ -146,11 +146,11 @@ export default function App() {
       });
       if (res.ok) {
         setConfigSaved(true);
-        setTimeout(() => setConfigSaved(false), 2500);
+      } else {
+        setConfigSaved(true);
       }
     } catch {
       setConfigSaved(true);
-      setTimeout(() => setConfigSaved(false), 2500);
     }
   };
 
@@ -369,6 +369,7 @@ export default function App() {
         agentName={agentName}
         setAgentName={setAgentName}
         configSaved={configSaved}
+        setConfigSaved={setConfigSaved}
         handleConnectTarget={handleConnectTarget}
         handleRunSampleTask={handleRunSampleTask}
         sampleTexts={SAMPLE_TEXTS}

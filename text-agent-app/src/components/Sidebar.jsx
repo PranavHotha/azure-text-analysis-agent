@@ -18,6 +18,7 @@ export default function Sidebar({
   agentName,
   setAgentName,
   configSaved,
+  setConfigSaved,
   handleConnectTarget,
   handleRunSampleTask,
   sampleTexts,
@@ -78,7 +79,10 @@ export default function Sidebar({
             autoCorrect="off"
             spellCheck="false"
             placeholder="https://text-agent-resource.ai.azure.com"
-            onChange={(e) => setFoundryEndpoint(e.target.value)}
+            onChange={(e) => {
+              setFoundryEndpoint(e.target.value);
+              if (configSaved && setConfigSaved) setConfigSaved(false);
+            }}
           />
         </div>
 
@@ -95,7 +99,10 @@ export default function Sidebar({
             autoCorrect="off"
             spellCheck="false"
             placeholder="e.g. gpt-4.1 or gpt-4o"
-            onChange={(e) => setModelDeployment(e.target.value)}
+            onChange={(e) => {
+              setModelDeployment(e.target.value);
+              if (configSaved && setConfigSaved) setConfigSaved(false);
+            }}
           />
         </div>
 
@@ -112,7 +119,10 @@ export default function Sidebar({
             autoCorrect="off"
             spellCheck="false"
             placeholder="e.g. Text-Analysis-Agent"
-            onChange={(e) => setAgentName(e.target.value)}
+            onChange={(e) => {
+              setAgentName(e.target.value);
+              if (configSaved && setConfigSaved) setConfigSaved(false);
+            }}
           />
         </div>
 
