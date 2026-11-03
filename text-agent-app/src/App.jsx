@@ -33,6 +33,16 @@ export default function App() {
   const [tenantId, setTenantId] = useState('');
   const [authError, setAuthError] = useState('');
 
+  useEffect(() => {
+    try {
+      const err = sessionStorage.getItem("last_auth_error");
+      if (err) {
+        setAuthError(err);
+        sessionStorage.removeItem("last_auth_error");
+      }
+    } catch {}
+  }, []);
+
   const clearMsalInteractionLocks = () => {
     try {
       [sessionStorage, localStorage].forEach((storage) => {

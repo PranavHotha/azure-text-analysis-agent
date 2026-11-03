@@ -10,6 +10,13 @@ msalInstance.addEventCallback((event) => {
   if (event.eventType === EventType.LOGIN_SUCCESS && event.payload && event.payload.account) {
     msalInstance.setActiveAccount(event.payload.account);
   }
+  if (event.eventType === EventType.LOGIN_FAILURE && event.error) {
+    const errorMsg = event.error.errorMessage || event.error.message || String(event.error);
+    console.error("MSAL LOGIN_FAILURE DETAIL:", errorMsg);
+    try {
+      sessionStorage.setItem("last_auth_error", errorMsg);
+    } catch {}
+  }
 });
 
 msalInstance.initialize().then(() => {
