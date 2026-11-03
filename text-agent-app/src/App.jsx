@@ -30,10 +30,11 @@ export default function App() {
     : null;
   const isLoading = false;
 
-  const [tenantId, setTenantId] = useState('6bd2f078-9ba4-426d-818b-a2250417bcac');
+  const [tenantId, setTenantId] = useState('');
 
   const loginWithRedirect = (customTenant) => {
-    const tid = (customTenant || tenantId || '6bd2f078-9ba4-426d-818b-a2250417bcac').trim();
+    const tid = (customTenant || tenantId).trim();
+    if (!tid) return;
     const req = {
       ...loginRequest,
       authority: `https://login.microsoftonline.com/${tid}`,
@@ -53,10 +54,10 @@ export default function App() {
   const getAuthHeaders = async () => {
     const headers = { 'Content-Type': 'application/json' };
     if (isAuthenticated && activeAccount) {
-      const tid = (tenantId || activeAccount.tenantId || '6bd2f078-9ba4-426d-818b-a2250417bcac').trim();
+      const tid = (tenantId || activeAccount.tenantId || '').trim();
       const req = {
         ...loginRequest,
-        authority: `https://login.microsoftonline.com/${tid}`,
+        ...(tid ? { authority: `https://login.microsoftonline.com/${tid}` } : {}),
         account: activeAccount,
       };
       try {

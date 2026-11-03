@@ -138,7 +138,7 @@ export default function Sidebar({
                 autoComplete="off"
                 autoCorrect="off"
                 spellCheck="false"
-                placeholder="e.g. 6bd2f078-9ba4-426d-818b-a2250417bcac"
+                placeholder="Enter your Azure Tenant ID"
                 onChange={(e) => setTenantId(e.target.value)}
               />
             </div>
@@ -153,11 +153,7 @@ export default function Sidebar({
               >
                 <span>Sign In to Access</span>
               </button>
-            ) : (
-              <div style={{ fontSize: '11px', color: '#888888', textAlign: 'center', padding: '6px' }}>
-                Enter your Azure Tenant ID above to enable Sign In
-              </div>
-            )
+            ) : null
           ) : (
             <button
               type="button"
