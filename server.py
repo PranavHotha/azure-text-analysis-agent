@@ -127,22 +127,47 @@ class MsalAzureCredential(TokenCredential):
         return AccessToken(token, exp)
 
 
-def get_azure_client():
-    global _openai_client, _project_client
-    if _openai_client is not None:
-        return _openai_client
+def get_azure_client(endpoint: Optional[str] = None, api_key: Optional[str] = None):
+    ep = (endpoint or "").strip() or os.getenv("FOUNDRY_ENDPOINT", "")
+    key = (api_key or "").strip() or os.getenv("AZURE_AI_API_KEY", "") or os.getenv("AZURE_OPENAI_API_KEY", "")
 
-    foundry_endpoint = os.getenv("FOUNDRY_ENDPOINT")
-    if not foundry_endpoint or "<your-foundry-resource>" in foundry_endpoint:
+    if not ep or "<your-foundry-resource>" in ep:
         return None
 
+    if not ep.startswith("http://") and not ep.startswith("https://"):
+        ep = f"https://{ep}"
+
+    clean_ep = ep.split("/openai")[0].rstrip("/")
+
+    # If key is provided in env, use it
+    if key:
+        from openai import AzureOpenAI
+        return AzureOpenAI(
+            azure_endpoint=clean_ep,
+            api_key=key,
+            api_version=os.getenv("OPENAI_API_VERSION", "2024-05-01-preview"),
+        )
+
+    # Use authenticated user's Azure Bearer token directly
+    bound = _request_token.get()
+    if bound:
+        token, exp, tok_claims, email = bound
+        from openai import AzureOpenAI
+        try:
+            return AzureOpenAI(
+                azure_endpoint=clean_ep,
+                azure_ad_token_provider=lambda: token,
+                api_version=os.getenv("OPENAI_API_VERSION", "2024-05-01-preview"),
+            )
+        except Exception as client_err:
+            print(f"[WARN] AzureOpenAI token init fallback: {client_err}", file=sys.stderr)
+
     try:
-        _project_client = AIProjectClient(
-            endpoint=foundry_endpoint,
+        project_client = AIProjectClient(
+            endpoint=ep,
             credential=MsalAzureCredential(),
         )
-        _openai_client = _project_client.get_openai_client()
-        return _openai_client
+        return project_client.get_openai_client()
     except Exception as e:
         print(f"[ERROR] Failed to initialize Azure Project Client: {e}", file=sys.stderr)
         return None
@@ -232,6 +257,7 @@ class TargetConfigUpdate(BaseModel):
     endpoint: str
     model: str
     agent_name: str
+    api_key: Optional[str] = None
 
 
 @app.get("/api/config/instructions")
@@ -276,15 +302,18 @@ def update_target_config(req: TargetConfigUpdate):
     ep = req.endpoint.strip()
     mdl = req.model.strip()
     ag = req.agent_name.strip()
+    key = (req.api_key or "").strip()
 
     # Ephemeral session-only target configuration (never saved or persisted to disk/.env)
     os.environ["FOUNDRY_ENDPOINT"] = ep
     os.environ["MODEL_DEPLOYMENT_NAME"] = mdl
     os.environ["AGENT_NAME"] = ag
+    if key:
+        os.environ["AZURE_AI_API_KEY"] = key
     _openai_client = None
     _project_client = None
 
-    return {"status": "connected", "endpoint": ep, "model": mdl, "agent_name": ag}
+    return {"status": "connected", "endpoint": ep, "model": mdl, "agent_name": ag, "has_key": bool(key)}
 
 
 @app.post("/api/session/clear")
@@ -296,21 +325,28 @@ def clear_server_cache():
     os.environ["FOUNDRY_ENDPOINT"] = ""
     os.environ["MODEL_DEPLOYMENT_NAME"] = ""
     os.environ["AGENT_NAME"] = ""
+    os.environ["AZURE_AI_API_KEY"] = ""
     return {"status": "cleared", "message": "Server client cache and session target cleared."}
 
 
 @app.post("/api/chat")
-def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
+def chat(
+    req: ChatRequest,
+    authorization: Optional[str] = Header(None),
+    x_azure_api_key: Optional[str] = Header(None),
+    x_azure_endpoint: Optional[str] = Header(None),
+    x_azure_model: Optional[str] = Header(None),
+):
     _bind_user_token(authorization)
-    client = get_azure_client()
+    client = get_azure_client(endpoint=x_azure_endpoint, api_key=x_azure_api_key)
     if not client:
         raise HTTPException(
             status_code=503,
-            detail="Azure AI target is not configured. Please enter your Foundry Endpoint, Model Deployment, and Agent Name in the sidebar and click Connect, or configure them in .env."
+            detail="Azure AI target or API Key is missing. Please enter your Foundry Endpoint, API Key, and Model Deployment in the sidebar and click Connect."
         )
 
     agent_name = os.getenv("AGENT_NAME", "Text-Analysis-Agent")
-    model = os.getenv("MODEL_DEPLOYMENT_NAME", "gpt-4.1")
+    model = (x_azure_model or "").strip() or os.getenv("MODEL_DEPLOYMENT_NAME", "gpt-4.1")
 
     active_sys = (req.system_instructions or "").strip() or get_active_system_instructions()
     conv_messages = [{"role": m.role, "content": m.content} for m in req.messages]
@@ -318,7 +354,8 @@ def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
         conv_messages.insert(0, {"role": "system", "content": active_sys})
 
     try:
-        response = client.responses.create(
+        if hasattr(client, "responses") and client.responses is not None:
+            response = client.responses.create(
             model=model,
             input=conv_messages,
             extra_body={"agent_reference": {"name": agent_name, "type": "agent_reference"}},
@@ -341,17 +378,23 @@ def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
 
 
 @app.post("/api/analyze")
-def analyze(req: AnalyzeRequest, authorization: Optional[str] = Header(None)):
+def analyze(
+    req: AnalyzeRequest,
+    authorization: Optional[str] = Header(None),
+    x_azure_api_key: Optional[str] = Header(None),
+    x_azure_endpoint: Optional[str] = Header(None),
+    x_azure_model: Optional[str] = Header(None),
+):
     _bind_user_token(authorization)
-    client = get_azure_client()
+    client = get_azure_client(endpoint=x_azure_endpoint, api_key=x_azure_api_key)
     if not client:
         raise HTTPException(
             status_code=503,
-            detail="Azure AI target is not configured. Please enter your Foundry Endpoint, Model Deployment, and Agent Name in the sidebar and click Connect, or configure them in .env."
+            detail="Azure AI target or API Key is missing. Please enter your Foundry Endpoint, API Key, and Model Deployment in the sidebar and click Connect."
         )
 
     agent_name = os.getenv("AGENT_NAME", "Text-Analysis-Agent")
-    model = os.getenv("MODEL_DEPLOYMENT_NAME", "gpt-4.1")
+    model = (x_azure_model or "").strip() or os.getenv("MODEL_DEPLOYMENT_NAME", "gpt-4.1")
 
     if req.task == "redact":
         prompt = (
@@ -385,7 +428,8 @@ def analyze(req: AnalyzeRequest, authorization: Optional[str] = Header(None)):
     conv_messages.append({"role": "user", "content": prompt})
 
     try:
-        response = client.responses.create(
+        if hasattr(client, "responses") and client.responses is not None:
+            response = client.responses.create(
             model=model,
             input=conv_messages,
             extra_body={"agent_reference": {"name": agent_name, "type": "agent_reference"}},

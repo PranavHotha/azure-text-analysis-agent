@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Settings, ChevronRight } from 'lucide-react';
-import { useAuth0 } from '@auth0/auth0-react';
+import { useMsal, useIsAuthenticated } from '@azure/msal-react';
+import { loginRequest } from './msalConfig';
 import Sidebar from './components/Sidebar';
 import AgentPage from './pages/AgentPage';
 import ChatPage from './pages/ChatPage';
@@ -14,28 +15,64 @@ const SAMPLE_TEXTS = {
 };
 
 const API_BASE = typeof window !== 'undefined' && window.location.origin.includes('localhost:5173')
-  ? 'http://127.0.0.1:8000'
+  ? 'http://localhost:8000'
   : '';
 
 export default function App() {
-  const {
-    user,
-    isAuthenticated,
-    isLoading,
-    loginWithRedirect,
-    logout,
-    getIdTokenClaims,
-  } = useAuth0();
+  const { instance, accounts } = useMsal();
+  const isAuthenticated = useIsAuthenticated();
+  const activeAccount = accounts[0] || null;
+  const user = activeAccount
+    ? {
+        name: activeAccount.name || activeAccount.username,
+        email: activeAccount.username,
+      }
+    : null;
+  const isLoading = false;
+
+  const loginWithRedirect = () => {
+    instance.loginRedirect(loginRequest).catch((err) => {
+      console.warn("Redirect login failed, falling back to popup:", err);
+      instance.loginPopup(loginRequest).catch(console.error);
+    });
+  };
+
+  const logout = () => {
+    instance.logoutRedirect({ postLogoutRedirectUri: window.location.origin }).catch(() => {
+      instance.logoutPopup().catch(console.error);
+    });
+  };
 
   const getAuthHeaders = async () => {
     const headers = { 'Content-Type': 'application/json' };
-    if (isAuthenticated && getIdTokenClaims) {
+    if (isAuthenticated && activeAccount) {
       try {
-        const claims = await getIdTokenClaims();
-        if (claims?.__raw) {
-          headers['Authorization'] = `Bearer ${claims.__raw}`;
+        const response = await instance.acquireTokenSilent({
+          ...loginRequest,
+          account: activeAccount,
+        });
+        if (response?.accessToken) {
+          headers['Authorization'] = `Bearer ${response.accessToken}`;
         }
-      } catch {}
+      } catch {
+        try {
+          const popupRes = await instance.acquireTokenPopup({
+            ...loginRequest,
+            account: activeAccount,
+          });
+          if (popupRes?.accessToken) {
+            headers['Authorization'] = `Bearer ${popupRes.accessToken}`;
+          }
+        } catch (e) {
+          console.warn("Token acquisition failed:", e);
+        }
+      }
+    }
+    if (foundryEndpoint.trim()) {
+      headers['x-azure-endpoint'] = foundryEndpoint.trim();
+    }
+    if (modelDeployment.trim()) {
+      headers['x-azure-model'] = modelDeployment.trim();
     }
     return headers;
   };
@@ -115,7 +152,7 @@ export default function App() {
     setAgentName('');
     setConfigSaved(false);
     fetch(`${API_BASE}/api/session/clear`, { method: 'POST' }).catch(() => {});
-    logout({ logoutParams: { returnTo: window.location.origin } });
+    logout();
   };
 
   // Validation checks for analysis execution
@@ -134,7 +171,7 @@ export default function App() {
     }
 
     if (!isModelConnected) {
-      setAnalysisResult('**Azure Model Connection Required:**\nPlease enter your Foundry Endpoint and Model Deployment in the sidebar and click **Save & Connect** before running analysis.');
+      setAnalysisResult('**Azure Model Required:**\nPlease enter your Foundry Endpoint and Model Deployment in the sidebar and click **Connect** before running analysis.');
       return;
     }
 
