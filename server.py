@@ -353,28 +353,32 @@ def chat(
     if active_sys and (not conv_messages or conv_messages[0].get("role") != "system"):
         conv_messages.insert(0, {"role": "system", "content": active_sys})
 
+    output = ""
     try:
         if hasattr(client, "responses") and client.responses is not None:
-            response = client.responses.create(
-            model=model,
-            input=conv_messages,
-            extra_body={"agent_reference": {"name": agent_name, "type": "agent_reference"}},
-        )
-        output = response.output_text or ""
-        return {"reply": output}
-    except Exception as err:
-        err_msg = str(err)
-        if "agent_reference" in err_msg or "unknown_parameter" in err_msg:
             try:
+                response = client.responses.create(
+                    model=model,
+                    input=conv_messages,
+                    extra_body={"agent_reference": {"name": agent_name, "type": "agent_reference"}},
+                )
+                output = response.output_text or ""
+            except Exception:
                 chat_resp = client.chat.completions.create(
                     model=model,
                     messages=conv_messages,
                 )
                 output = chat_resp.choices[0].message.content or ""
-                return {"reply": output}
-            except Exception as chat_err:
-                raise HTTPException(status_code=500, detail=str(chat_err))
-        raise HTTPException(status_code=500, detail=err_msg)
+        else:
+            chat_resp = client.chat.completions.create(
+                model=model,
+                messages=conv_messages,
+            )
+            output = chat_resp.choices[0].message.content or ""
+        return {"reply": output}
+    except Exception as err:
+        print(f"[ERROR in /api/chat]: {err}", file=sys.stderr)
+        raise HTTPException(status_code=500, detail=str(err))
 
 
 @app.post("/api/analyze")
@@ -427,27 +431,31 @@ def analyze(
         conv_messages.append({"role": "system", "content": active_sys})
     conv_messages.append({"role": "user", "content": prompt})
 
+    output = ""
     try:
         if hasattr(client, "responses") and client.responses is not None:
-            response = client.responses.create(
-            model=model,
-            input=conv_messages,
-            extra_body={"agent_reference": {"name": agent_name, "type": "agent_reference"}},
-        )
-        output = response.output_text or ""
-    except Exception as err:
-        err_msg = str(err)
-        if "agent_reference" in err_msg or "unknown_parameter" in err_msg:
             try:
+                response = client.responses.create(
+                    model=model,
+                    input=conv_messages,
+                    extra_body={"agent_reference": {"name": agent_name, "type": "agent_reference"}},
+                )
+                output = response.output_text or ""
+            except Exception:
                 chat_resp = client.chat.completions.create(
                     model=model,
                     messages=conv_messages,
                 )
                 output = chat_resp.choices[0].message.content or ""
-            except Exception as chat_err:
-                raise HTTPException(status_code=500, detail=str(chat_err))
         else:
-            raise HTTPException(status_code=500, detail=err_msg)
+            chat_resp = client.chat.completions.create(
+                model=model,
+                messages=conv_messages,
+            )
+            output = chat_resp.choices[0].message.content or ""
+    except Exception as err:
+        print(f"[ERROR in /api/analyze]: {err}", file=sys.stderr)
+        raise HTTPException(status_code=500, detail=str(err))
 
     elapsed = round(time.time() - start_time, 2)
     return {"result": output, "elapsed": elapsed, "task": req.task}
