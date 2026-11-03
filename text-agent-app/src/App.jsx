@@ -32,22 +32,41 @@ export default function App() {
 
   const [tenantId, setTenantId] = useState('');
 
+  const clearMsalInteractionLocks = () => {
+    try {
+      [sessionStorage, localStorage].forEach((storage) => {
+        Object.keys(storage).forEach((k) => {
+          if (k.toLowerCase().includes("interaction")) {
+            storage.removeItem(k);
+          }
+        });
+      });
+    } catch {}
+  };
+
   const loginWithRedirect = (customTenant) => {
     const tid = (customTenant || tenantId).trim();
     if (!tid) return;
+
+    // Clear any stale interaction_in_progress locks from previous aborted attempts
+    clearMsalInteractionLocks();
+
     const req = {
       ...loginRequest,
       authority: `https://login.microsoftonline.com/${tid}`,
       redirectUri: window.location.origin,
     };
+
     instance
       .loginPopup(req)
       .catch((popupErr) => {
         console.warn("Popup login failed or blocked, attempting redirect:", popupErr);
+        clearMsalInteractionLocks();
         return instance.loginRedirect(req);
       })
       .catch((err) => {
         console.error("Login failed:", err);
+        clearMsalInteractionLocks();
       });
   };
 
