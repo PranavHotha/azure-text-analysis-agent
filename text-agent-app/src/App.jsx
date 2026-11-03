@@ -365,6 +365,7 @@ export default function App() {
         body: JSON.stringify({
           messages: newHistory.map((m) => ({ role: m.role, content: m.content })),
           user_email: user?.email,
+          document_context: inputText.trim() || undefined,
         }),
       });
       if (res.ok) {

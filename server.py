@@ -260,6 +260,18 @@ DEFAULT_SYSTEM_INSTRUCTIONS = """You are an Azure AI Text Analysis Agent special
   Dates, Numbers & Reference Codes:
   - Type: (Flight Number, Confirmation Code, Account Number, or Date)"""
 
+DEFAULT_CHAT_SYSTEM_INSTRUCTIONS = """You are an intelligent, conversational Azure AI Language Assistant for the Text Analysis platform.
+You assist users conversationally with natural language inquiries, questions about text analysis, data privacy, PII redaction, named entity recognition, and sentiment intelligence.
+
+Key Guidelines:
+1. Conversational By Default: When the user asks a general question, greets you, seeks help, or asks for explanations, respond conversationally, naturally, and helpfully using clean GitHub-style Markdown. Do NOT output structured entity extraction or PII redaction template headings unless the user specifically asks you to analyze, redact, or extract entities from text.
+2. Context Awareness: If an active document from the Text Analysis Studio is provided below, reference it to accurately answer questions about the document, explain findings, summarize content, or locate specific data points when requested.
+3. Analysis on Request:
+   - When asked to Redact PII: Identify sensitive data and replace it with standardized category tags ([Person], [Phone Number], [Email], [Address], [SSN], [Credit Card Number], [Date], [Organization], [Location], [Account Number], etc.) followed by a concise redaction summary.
+   - When asked to Analyze Sentiment: Provide overall polarity (Positive, Negative, Neutral, Mixed), confidence indicators, and key drivers.
+   - When asked to Extract Entities: Group entities clearly into People & Roles, Organizations & Brands, Locations & Addresses, and Dates, Numbers & Reference Codes.
+4. Professional & Direct: Keep responses concise, well-structured, and helpful."""
+
 _custom_system_instructions: Optional[str] = None
 
 
@@ -281,6 +293,7 @@ class ChatRequest(BaseModel):
     messages: List[Message]
     system_instructions: Optional[str] = None
     user_email: Optional[str] = None
+    document_context: Optional[str] = None
 
 
 class AnalyzeRequest(BaseModel):
@@ -391,10 +404,16 @@ def chat(
     agent_name = (x_azure_agent_name or "").strip() or os.getenv("AGENT_NAME", "Text-Analysis-Agent")
     model = (x_azure_model or "").strip() or os.getenv("MODEL_DEPLOYMENT_NAME", "gpt-4.1")
 
-    active_sys = (req.system_instructions or "").strip() or get_active_system_instructions()
+    base_sys = (req.system_instructions or "").strip() or DEFAULT_CHAT_SYSTEM_INSTRUCTIONS
+    if req.document_context and req.document_context.strip():
+        base_sys += (
+            f"\n\nActive Document in Studio:\n\"\"\"\n{req.document_context.strip()}\n\"\"\"\n"
+            "You can reference this active document if the user asks questions or requests operations concerning it."
+        )
+
     conv_messages = [{"role": m.role, "content": m.content} for m in req.messages]
-    if active_sys and (not conv_messages or conv_messages[0].get("role") != "system"):
-        conv_messages.insert(0, {"role": "system", "content": active_sys})
+    if base_sys and (not conv_messages or conv_messages[0].get("role") != "system"):
+        conv_messages.insert(0, {"role": "system", "content": base_sys})
 
     output = ""
     try:
