@@ -73,6 +73,38 @@ From your Azure AI Foundry portal or Azure Portal:
 
 ---
 
+## 🔐 Azure Prerequisites & Bring-Your-Own-Azure (BYOA) Guide
+
+This application features a **100% keyless architecture** powered by **Microsoft Entra ID (MSAL OAuth 2.0)**. Anyone with an Azure account can connect and run inferences against their own Azure AI Foundry or Azure OpenAI resources.
+
+### Step 1: Assign the Required Azure RBAC Role
+When accessing Azure AI models with a Microsoft account (without an API key), Azure requires an explicit data-plane role assignment on your resource:
+1. Open the [Azure Portal](https://portal.azure.com).
+2. Navigate to your **Azure AI Foundry / Cognitive Services** resource.
+3. In the left navigation menu, select **Access Control (IAM)**.
+4. Click **+ Add** $\rightarrow$ **Add role assignment**.
+5. Search for and select the role **Cognitive Services OpenAI User** (or *Cognitive Services OpenAI Contributor*).
+6. Under **Members**, select **User, group, or service principal**, click **+ Select members**, and pick your **signed-in Microsoft / Azure account**.
+7. Click **Review + assign** to save.
+
+> [!IMPORTANT]
+> Without this role assignment, Azure's zero-trust security will reject the OAuth Bearer token with a 401/403 authorization error.
+
+### Step 2: Retrieve Your Azure Target Details
+From your Azure AI Foundry portal or Azure Portal:
+* **Directory (Tenant) ID:** Found in the Microsoft Entra ID overview page or Azure subscription properties.
+* **Foundry Endpoint:** Your project endpoint (e.g., `https://<your-resource>.services.ai.azure.com/` or `https://<your-resource>.openai.azure.com/`).
+* **Model Deployment Name:** The exact name of your model deployment under **Deployments** (e.g., `gpt-4o`, `gpt-4`).
+* **Agent Name:** The name of your custom agent created in Azure AI Foundry (e.g., `serene-agent-xxxx` or `Text-Analysis-Agent`).
+
+### Step 3: Connect in the Application
+1. In the sidebar, enter your **Directory (Tenant) ID** $\rightarrow$ click **Sign In to Access** to authenticate with Microsoft.
+2. Enter your **Foundry Endpoint**, **Model Deployment**, and **Agent Name**.
+3. Click **Connect** (the button will turn to **`Connected ✓`**).
+4. Select a task or open the Chat Assistant to run real-time AI inferences!
+
+---
+
 ## 🛠️ Local Setup Instructions
 
 ### 1. Clone the Repository

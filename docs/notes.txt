@@ -44,3 +44,35 @@ Backend                 | FastAPI (Python)               | REST API, Azure AI SD
 Authentication (AuthN)  | OpenID Connect (OIDC)          | Verifying user identity, SSO, ID tokens
 Authorization (AuthZ)   | OAuth 2.0 & Microsoft Entra ID | Access tokens, Azure RBAC permissions
 --------------------------------------------------------------------------------
+
+================================================================================
+KEYLESS MULTI-TENANT IMPLEMENTATION & RBAC RESOLUTION NOTES
+================================================================================
+
+1. Multi-Tenant Bring-Your-Own-Azure (MSAL OAuth 2.0 Migration)
+   - Replaced static API keys and third-party Auth0 tokens with native Microsoft Authentication Library (@azure/msal-react, @azure/msal-browser).
+   - Dynamic Tenant Authority: Allows users to input their Azure Directory (Tenant) ID in the sidebar, configuring the MSAL authority dynamically as https://login.microsoftonline.com/{tenantId}.
+   - Personal Account Fix (AADSTS500207): Avoids the generic /common authority restriction by authenticating directly against the user's specific Azure tenant where their AI resources reside.
+   - Target Scope: Requests delegated access with scope https://cognitiveservices.azure.com/user_impersonation, ensuring the Bearer token carries the legitimate audience for Azure AI Foundry and Cognitive Services.
+
+2. Azure AI Foundry vs Azure OpenAI SDK Dynamic Routing
+   - Azure AI Foundry Projects (*.services.ai.azure.com): Automatically routes through Azure AI Foundry SDK (AIProjectClient) using MsalAzureCredential, targeting /openai/v1/ and passing the specific Agent Name reference (extra_body={"agent_reference": {"name": agent_name}}).
+   - Azure OpenAI Service (*.openai.azure.com): Automatically routes through OpenAI SDK (AzureOpenAI) using azure_ad_token_provider to supply the user's OAuth Bearer token.
+   - Dynamic Selection: In server.py, get_azure_client detects the endpoint structure to pick the correct client architecture rather than forcing an incompatible endpoint path.
+
+3. Real-Time Parameter Forwarding & Persistent UI State
+   - Every request from the frontend to /api/chat and /api/analyze sends x-azure-endpoint, x-azure-model, and x-azure-agent-name headers, ensuring sidebar configurations take immediate effect.
+   - Sidebar "Connect" button transitions to a sticky "Connected ✓" state upon confirmation, resetting back to "Connect" only when configuration fields are edited.
+
+4. Azure RBAC Role Assignment Resolution
+   - Root Cause of 500 / 401 / 403 Errors: When accessing Azure AI endpoints keylessly using an OAuth 2.0 Bearer token, Entra ID requires explicit data plane role permissions on the Azure resource.
+   - Required Role: "Cognitive Services OpenAI User" (or "Cognitive Services OpenAI Contributor").
+   - Configuration Steps:
+     1. In Azure Portal, open the target Azure AI Foundry / Cognitive Services resource.
+     2. Navigate to "Access Control (IAM)" in the left navigation menu.
+     3. Click "Add" -> "Add role assignment".
+     4. Select the role "Cognitive Services OpenAI User".
+     5. Under "Members", assign access to the signed-in Microsoft account / principal.
+     6. Save the assignment.
+   - Result: Azure authorizes the user's Bearer token for chat completions and text analysis without needing an API key anywhere in the application.
+

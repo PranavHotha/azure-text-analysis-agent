@@ -88,6 +88,8 @@ def _bind_user_token(authorization: Optional[str]) -> None:
     if token:
         claims = _decode_jwt_payload(token)
         exp = int(claims.get("exp", 0) or 0)
+        if exp <= time.time():
+            exp = int(time.time() + 3600)
         email = (
             claims.get("preferred_username")
             or claims.get("upn")
@@ -139,7 +141,7 @@ def get_azure_client(endpoint: Optional[str] = None, api_key: Optional[str] = No
 
     clean_ep = ep.split("/openai")[0].rstrip("/")
 
-    # If key is provided in env, use it
+    # If key is provided in env or request, use AzureOpenAI directly
     if key:
         from openai import AzureOpenAI
         return AzureOpenAI(
@@ -148,7 +150,19 @@ def get_azure_client(endpoint: Optional[str] = None, api_key: Optional[str] = No
             api_version=os.getenv("OPENAI_API_VERSION", "2024-05-01-preview"),
         )
 
-    # Use authenticated user's Azure Bearer token directly
+    # If endpoint is an Azure AI Foundry services endpoint (https://...services.ai.azure.com),
+    # prioritize AIProjectClient which correctly targets /openai/v1/ and agent references
+    if "services.ai.azure.com" in clean_ep or "ai.azure.com" in clean_ep:
+        try:
+            project_client = AIProjectClient(
+                endpoint=clean_ep,
+                credential=MsalAzureCredential(),
+            )
+            return project_client.get_openai_client()
+        except Exception as e:
+            print(f"[WARN] AIProjectClient init fallback: {e}", file=sys.stderr)
+
+    # For standard Azure OpenAI Service endpoints (https://<name>.openai.azure.com), use AzureOpenAI with user's bearer token
     bound = _request_token.get()
     if bound:
         token, exp, tok_claims, email = bound
@@ -162,15 +176,43 @@ def get_azure_client(endpoint: Optional[str] = None, api_key: Optional[str] = No
         except Exception as client_err:
             print(f"[WARN] AzureOpenAI token init fallback: {client_err}", file=sys.stderr)
 
+    # General fallback to AIProjectClient
     try:
         project_client = AIProjectClient(
-            endpoint=ep,
+            endpoint=clean_ep,
             credential=MsalAzureCredential(),
         )
         return project_client.get_openai_client()
     except Exception as e:
         print(f"[ERROR] Failed to initialize Azure Project Client: {e}", file=sys.stderr)
         return None
+
+
+def _handle_azure_exception(err: Exception, model: str, endpoint: str):
+    print(f"[ERROR from Azure]: {err}", file=sys.stderr)
+    status_code = getattr(err, "status_code", None) or getattr(err, "code", None)
+    if not isinstance(status_code, int) or status_code < 400 or status_code >= 600:
+        status_code = 500
+    error_msg = str(err)
+    if (
+        "Principal does not have authorization" in error_msg
+        or "Unauthorized" in error_msg
+        or "Access denied" in error_msg
+        or status_code in (401, 403)
+    ):
+        error_msg = (
+            f"Azure RBAC Permission Error ({status_code}): Your signed-in Azure account does not have "
+            f"the 'Cognitive Services OpenAI User' role assigned on this Azure resource. "
+            f"To fix: In Azure Portal -> Navigate to your AI Foundry / Cognitive Services resource -> "
+            f"Access Control (IAM) -> Add Role Assignment -> Select 'Cognitive Services OpenAI User' -> "
+            f"Assign to your signed-in account. (Original error: {err})"
+        )
+    elif "DeploymentNotFound" in error_msg or "Resource not found" in error_msg or status_code == 404:
+        error_msg = (
+            f"Model Deployment Not Found (404): Deployment '{model}' was not found at {endpoint}. "
+            f"Please verify that your Model / Deployment Name in the sidebar matches your deployment name in Azure AI Foundry."
+        )
+    raise HTTPException(status_code=status_code, detail=error_msg)
 
 
 DEFAULT_SYSTEM_INSTRUCTIONS = """You are an Azure AI Text Analysis Agent specializing in Data Privacy, PII Redaction, Named Entity Recognition (NER), and Sentiment Intelligence. Follow the exact output format below based on the requested function:
@@ -336,6 +378,7 @@ def chat(
     x_azure_api_key: Optional[str] = Header(None),
     x_azure_endpoint: Optional[str] = Header(None),
     x_azure_model: Optional[str] = Header(None),
+    x_azure_agent_name: Optional[str] = Header(None),
 ):
     _bind_user_token(authorization)
     client = get_azure_client(endpoint=x_azure_endpoint, api_key=x_azure_api_key)
@@ -345,7 +388,7 @@ def chat(
             detail="Azure AI target or API Key is missing. Please enter your Foundry Endpoint, API Key, and Model Deployment in the sidebar and click Connect."
         )
 
-    agent_name = os.getenv("AGENT_NAME", "Text-Analysis-Agent")
+    agent_name = (x_azure_agent_name or "").strip() or os.getenv("AGENT_NAME", "Text-Analysis-Agent")
     model = (x_azure_model or "").strip() or os.getenv("MODEL_DEPLOYMENT_NAME", "gpt-4.1")
 
     active_sys = (req.system_instructions or "").strip() or get_active_system_instructions()
@@ -377,8 +420,7 @@ def chat(
             output = chat_resp.choices[0].message.content or ""
         return {"reply": output}
     except Exception as err:
-        print(f"[ERROR in /api/chat]: {err}", file=sys.stderr)
-        raise HTTPException(status_code=500, detail=str(err))
+        _handle_azure_exception(err, model, x_azure_endpoint or os.getenv("FOUNDRY_ENDPOINT", ""))
 
 
 @app.post("/api/analyze")
@@ -388,6 +430,7 @@ def analyze(
     x_azure_api_key: Optional[str] = Header(None),
     x_azure_endpoint: Optional[str] = Header(None),
     x_azure_model: Optional[str] = Header(None),
+    x_azure_agent_name: Optional[str] = Header(None),
 ):
     _bind_user_token(authorization)
     client = get_azure_client(endpoint=x_azure_endpoint, api_key=x_azure_api_key)
@@ -397,7 +440,7 @@ def analyze(
             detail="Azure AI target or API Key is missing. Please enter your Foundry Endpoint, API Key, and Model Deployment in the sidebar and click Connect."
         )
 
-    agent_name = os.getenv("AGENT_NAME", "Text-Analysis-Agent")
+    agent_name = (x_azure_agent_name or "").strip() or os.getenv("AGENT_NAME", "Text-Analysis-Agent")
     model = (x_azure_model or "").strip() or os.getenv("MODEL_DEPLOYMENT_NAME", "gpt-4.1")
 
     if req.task == "redact":
@@ -454,8 +497,7 @@ def analyze(
             )
             output = chat_resp.choices[0].message.content or ""
     except Exception as err:
-        print(f"[ERROR in /api/analyze]: {err}", file=sys.stderr)
-        raise HTTPException(status_code=500, detail=str(err))
+        _handle_azure_exception(err, model, x_azure_endpoint or os.getenv("FOUNDRY_ENDPOINT", ""))
 
     elapsed = round(time.time() - start_time, 2)
     return {"result": output, "elapsed": elapsed, "task": req.task}

@@ -82,6 +82,9 @@ export default function App() {
     if (modelDeployment.trim()) {
       headers['x-azure-model'] = modelDeployment.trim();
     }
+    if (agentName.trim()) {
+      headers['x-azure-agent-name'] = agentName.trim();
+    }
     return headers;
   };
 
