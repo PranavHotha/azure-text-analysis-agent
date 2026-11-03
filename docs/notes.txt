@@ -1,0 +1,46 @@
+https://learn.microsoft.com/en-us/entra/external-id/customers/how-to-user-flow-add-application
+
+https://learn.microsoft.com/en-us/entra/external-id/customers/how-to-custom-oidc-federation-customers
+
+https://learn.microsoft.com/en-us/entra/external-id/customers/overview-customers-ciam
+
+https://learn.microsoft.com/en-us/entra/external-id/tenant-configurations
+
+https://learn.microsoft.com/en-us/entra/identity-platform/tutorial-single-page-app-react-prepare-app?tabs=external-tenant
+
+
+================================================================================
+PROJECT TECHNOLOGY STACK & ARCHITECTURE NOTES
+================================================================================
+
+1. Backend: FastAPI (Python 3.10+)
+   - High-performance asynchronous REST API framework.
+   - Hosts endpoints: /api/analyze, /api/chat, /api/status, /api/health.
+   - Integrates with Azure AI Foundry SDK (AIProjectClient, Azure OpenAI).
+   - Serves production React bundle build (text-agent-app/dist).
+
+2. Frontend: React.js (Vite)
+   - Client-side Single Page Application (SPA).
+   - Document processing studio, live side-by-side redaction/NER views, chat assistant.
+   - Local state management and monochrome minimalist UI design system.
+   - Handles authentication state, token caching (cacheLocation="localstorage"), and attaching Bearer tokens to outgoing API requests.
+
+3. Authentication (AuthN - "Who are you?"): OpenID Connect (OIDC) / Identity Provider
+   - Handled via OpenID Connect (OIDC), the identity layer built on top of OAuth 2.0.
+   - Implemented via Auth0 / Entra ID external tenant integration.
+   - Issues signed JSON Web Tokens (ID tokens) containing user profile claims (name, email, subject ID).
+
+4. Authorization (AuthZ - "What resources can you access?"): OAuth 2.0 & Microsoft Entra ID
+   - OAuth 2.0 provides delegated access and Bearer access token protocol.
+   - Microsoft Entra ID enforces tenant-level permissions and Role-Based Access Control (RBAC) (e.g. Cognitive Services User / Azure AI Developer).
+   - Authorizes calls from backend credentials (MsalAzureCredential, DefaultAzureCredential) to Azure AI Foundry endpoints (ai.azure.com, cognitiveservices.azure.com).
+
+Summary Architecture Matrix:
+--------------------------------------------------------------------------------
+Layer                   | Technology                     | Function
+--------------------------------------------------------------------------------
+Frontend                | React.js 19 + Vite             | UI, Studio, Chat, Token Forwarding
+Backend                 | FastAPI (Python)               | REST API, Azure AI SDK Orchestration
+Authentication (AuthN)  | OpenID Connect (OIDC)          | Verifying user identity, SSO, ID tokens
+Authorization (AuthZ)   | OAuth 2.0 & Microsoft Entra ID | Access tokens, Azure RBAC permissions
+--------------------------------------------------------------------------------

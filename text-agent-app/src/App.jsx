@@ -1,15 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User, ArrowUp, Loader2, ChevronLeft, ChevronRight, Settings, Copy, Check, Download, Sparkles } from 'lucide-react';
+import { Settings, ChevronRight } from 'lucide-react';
 import { useAuth0 } from '@auth0/auth0-react';
-import FormattedOutput from './FormattedOutput';
-import './modern-button.css';
-import './App.css';
+import Sidebar from './components/Sidebar';
+import StudioPage from './pages/AgentPage';
+import ChatPage from './pages/ChatPage';
+import './css/modern-button.css';
+import './css/App.css';
 
 const SAMPLE_TEXTS = {
   pii: "My name is Sarah Miller, my phone number is 555-0199, and I live at 123 Main St, New York. Please reach out to me regarding account 4111-2222-3333-4444.",
   entities: "From: Delta Air Lines (delta-notifications@delta.com) | Passenger Alexander 'Alex' Vance booked flight DL1234 from Los Angeles (LAX) to New York (JFK) on Seat 12A. Confirmation #HJK992. Billing address: 4500 Wilshire Blvd, Los Angeles, CA 90010.",
   sentiment: "I was absolutely thrilled with how fast the order arrived at my doorstep by Wednesday! However, the customer support representative was very rude and hung up on me when I asked for a return label.",
 };
+
+const API_BASE = typeof window !== 'undefined' && window.location.origin.includes('localhost:5173')
+  ? 'http://127.0.0.1:8000'
+  : '';
 
 export default function App() {
   const {
@@ -84,7 +90,7 @@ export default function App() {
     if (!foundryEndpoint.trim() || !modelDeployment.trim()) return;
     try {
       const headers = await getAuthHeaders();
-      const res = await fetch('http://127.0.0.1:8000/api/config/target', {
+      const res = await fetch(`${API_BASE}/api/config/target`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -108,7 +114,7 @@ export default function App() {
     setModelDeployment('');
     setAgentName('');
     setConfigSaved(false);
-    fetch('http://127.0.0.1:8000/api/session/clear', { method: 'POST' }).catch(() => {});
+    fetch(`${API_BASE}/api/session/clear`, { method: 'POST' }).catch(() => {});
     logout({ logoutParams: { returnTo: window.location.origin } });
   };
 
@@ -123,7 +129,7 @@ export default function App() {
     if (!text || isAnalyzing) return;
 
     if (!isAuthenticated) {
-      setAnalysisResult('**Authentication Required:**\nPlease sign in via Entra ID in the sidebar before running text analysis.');
+      setAnalysisResult('**Authentication Required:**\nPlease click **Sign In to Access** in the sidebar before running text analysis.');
       return;
     }
 
@@ -140,7 +146,7 @@ export default function App() {
     // Call live backend
     try {
       const headers = await getAuthHeaders();
-      const res = await fetch('http://127.0.0.1:8000/api/analyze', {
+      const res = await fetch(`${API_BASE}/api/analyze`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -178,7 +184,7 @@ export default function App() {
     setAnalysisLatency(null);
 
     if (!isAuthenticated) {
-      setAnalysisResult('**Authentication Required:**\nSample query loaded into Document Source. Please sign in via Entra ID in the sidebar to run analysis on this text.');
+      setAnalysisResult('**Authentication Required:**\nSample query loaded into Document Source. Please click **Sign In to Access** in the sidebar to run analysis on this text.');
       return;
     }
 
@@ -230,7 +236,7 @@ export default function App() {
         { role: 'user', content: prompt },
         {
           role: 'assistant',
-          content: '**Authentication Required:**\nPlease sign in via Entra ID in the sidebar before querying the Azure Language Agent.',
+          content: '**Authentication Required:**\nPlease click **Sign In to Access** in the sidebar before querying the Azure Language Agent.',
           isSample: false,
         },
       ]);
@@ -260,7 +266,7 @@ export default function App() {
     // Send to live backend API
     try {
       const headers = await getAuthHeaders();
-      const res = await fetch('http://127.0.0.1:8000/api/chat', {
+      const res = await fetch(`${API_BASE}/api/chat`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -301,183 +307,30 @@ export default function App() {
       {/* ---------------------------------------------------------
           LEFT SIDEBAR: Authentication, Target, Sample Tasks
           --------------------------------------------------------- */}
-      <aside className={`sidebar ${sidebarOpen ? 'open' : 'collapsed'}`}>
-        <div className="sidebar-top-bar">
-          <button
-            type="button"
-            className="sidebar-toggle-btn"
-            onClick={() => setSidebarOpen(false)}
-            title="Collapse sidebar"
-          >
-            <ChevronLeft size={16} strokeWidth={2.5} />
-          </button>
-        </div>
-
-        {/* Section 1: Authentication & Access */}
-        <div className="sidebar-section">
-          <div className="sidebar-heading">
-            <span>Authentication &amp; Access</span>
-          </div>
-          <div className="auth-profile-widget">
-            <div className="auth-avatar-circle">
-              <User size={15} strokeWidth={2.2} />
-            </div>
-            <div className="auth-info-col">
-              <div className="auth-status-pill">
-                <span className={`status-micro-dot ${isAuthenticated ? 'online' : 'offline'}`}></span>
-                <span>{isAuthenticated ? 'Entra ID Connected' : 'Guest Mode'}</span>
-              </div>
-              <div className="auth-user-title">
-                {isLoading ? 'Checking...' : isAuthenticated ? (user?.name || user?.email || 'Authenticated User') : 'Guest User'}
-              </div>
-              <div className="auth-user-sub">
-                {isAuthenticated ? user?.email : 'Sign in below to link Azure'}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Section 2: Connected Azure Target */}
-        <div className="sidebar-section">
-          <div className="sidebar-heading">
-            <span>Connected Azure Target</span>
-          </div>
-
-          <div className="input-group">
-            <div className="input-label-row">
-              <span className="input-label">Foundry Endpoint:</span>
-              <span className="status-dot"></span>
-            </div>
-            <input
-              type="text"
-              className="text-input-field"
-              value={foundryEndpoint}
-              autoComplete="off"
-              autoCorrect="off"
-              spellCheck="false"
-              placeholder="https://text-agent-resource.ai.azure.com"
-              onChange={(e) => setFoundryEndpoint(e.target.value)}
-            />
-          </div>
-
-          <div className="input-group">
-            <div className="input-label-row">
-              <span className="input-label">Model Deployment:</span>
-              <span className="status-dot"></span>
-            </div>
-            <input
-              type="text"
-              className="text-input-field"
-              value={modelDeployment}
-              autoComplete="off"
-              autoCorrect="off"
-              spellCheck="false"
-              placeholder="e.g. gpt-4.1 or gpt-4o"
-              onChange={(e) => setModelDeployment(e.target.value)}
-            />
-          </div>
-
-          <div className="input-group">
-            <div className="input-label-row">
-              <span className="input-label">Agent Name:</span>
-              <span className="status-dot"></span>
-            </div>
-            <input
-              type="text"
-              className="text-input-field"
-              value={agentName}
-              autoComplete="off"
-              autoCorrect="off"
-              spellCheck="false"
-              placeholder="e.g. Text-Analysis-Agent"
-              onChange={(e) => setAgentName(e.target.value)}
-            />
-          </div>
-
-          <div className="button-stack" style={{ marginTop: '8px' }}>
-            <button
-              type="button"
-              className="btn effect01"
-              onClick={handleConnectTarget}
-              disabled={!foundryEndpoint.trim() || !modelDeployment.trim()}
-            >
-              <span>{configSaved ? 'Connected ✓' : 'Connect'}</span>
-            </button>
-            {!isAuthenticated ? (
-              <button
-                type="button"
-                className="btn effect01"
-                onClick={() => loginWithRedirect()}
-              >
-                <span>Sign In via Entra ID</span>
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="btn effect01"
-                onClick={handleSignOut}
-              >
-                <span>Sign Out &amp; Disconnect</span>
-              </button>
-            )}
-            <div 
-              className={`session-status-badge ${isAuthenticated ? 'active' : 'inactive'}`} 
-              title={isAuthenticated ? 'Entra ID Session Active' : 'No Active Entra ID Session'}
-            >
-              <span className={`session-status-dot ${isAuthenticated ? 'active' : 'inactive'}`}></span>
-              <span>
-                {isLoading 
-                  ? 'Checking Session...' 
-                  : isAuthenticated 
-                    ? 'Active Session' 
-                    : 'Inactive Session'}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Section 3: Agent Sample Tasks */}
-        <div className="sidebar-section">
-          <div className="sidebar-heading">
-            <span>Agent Sample Tasks</span>
-          </div>
-          <div className="button-stack">
-            <button
-              type="button"
-              className="btn effect01"
-              onClick={() => handleRunSampleTask('redact', SAMPLE_TEXTS.pii)}
-            >
-              <span>Redact PII</span>
-            </button>
-            <button
-              type="button"
-              className="btn effect01"
-              onClick={() => handleRunSampleTask('entities', SAMPLE_TEXTS.entities)}
-            >
-              <span>Extract Entities</span>
-            </button>
-            <button
-              type="button"
-              className="btn effect01"
-              onClick={() => handleRunSampleTask('sentiment', SAMPLE_TEXTS.sentiment)}
-            >
-              <span>Analyze Sentiment</span>
-            </button>
-            <button
-              type="button"
-              className="btn effect01"
-              onClick={handleClearSession}
-            >
-              <span>Clear Workspace</span>
-            </button>
-          </div>
-        </div>
-      </aside>
+      <Sidebar
+        sidebarOpen={sidebarOpen}
+        setSidebarOpen={setSidebarOpen}
+        isAuthenticated={isAuthenticated}
+        isLoading={isLoading}
+        user={user}
+        loginWithRedirect={loginWithRedirect}
+        handleSignOut={handleSignOut}
+        foundryEndpoint={foundryEndpoint}
+        setFoundryEndpoint={setFoundryEndpoint}
+        modelDeployment={modelDeployment}
+        setModelDeployment={setModelDeployment}
+        agentName={agentName}
+        setAgentName={setAgentName}
+        configSaved={configSaved}
+        handleConnectTarget={handleConnectTarget}
+        handleRunSampleTask={handleRunSampleTask}
+        sampleTexts={SAMPLE_TEXTS}
+      />
 
       {/* ---------------------------------------------------------
           MAIN CONTENT AREA
           --------------------------------------------------------- */}
-      <main className="main-content">
+      <main className={`main-content ${!sidebarOpen ? 'sidebar-collapsed-view' : ''}`}>
         {!sidebarOpen && (
           <button
             type="button"
@@ -517,356 +370,47 @@ export default function App() {
           </button>
         </nav>
 
-        {/* TAB 1: TEXT ANALYSIS AGENT */}
+        {/* TAB 1: TEXT ANALYSIS AGENT STUDIO */}
         {activeTab === 'agent' && (
-          <div className="workspace-grid">
-            <div className="workspace-column">
-              <div className="column-title">INPUT TEXT</div>
-
-              <div className="section-sub-label">SELECT ANALYSIS TASK:</div>
-              <div className="task-selection-row">
-                <button
-                  type="button"
-                  className={`btn effect01 ${selectedTask === 'redact' ? '' : 'outline'}`}
-                  style={{ width: 'auto', minWidth: '130px', height: '36px' }}
-                  onClick={() => setSelectedTask('redact')}
-                >
-                  <span>REDACT PII</span>
-                </button>
-                <button
-                  type="button"
-                  className={`btn effect01 ${selectedTask === 'sentiment' ? '' : 'outline'}`}
-                  style={{ width: 'auto', minWidth: '160px', height: '36px' }}
-                  onClick={() => setSelectedTask('sentiment')}
-                >
-                  <span>ANALYZE SENTIMENT</span>
-                </button>
-                <button
-                  type="button"
-                  className={`btn effect01 ${selectedTask === 'entities' ? '' : 'outline'}`}
-                  style={{ width: 'auto', minWidth: '150px', height: '36px' }}
-                  onClick={() => setSelectedTask('entities')}
-                >
-                  <span>EXTRACT ENTITIES</span>
-                </button>
-              </div>
-
-              <div className="section-sub-label" style={{ marginTop: '8px' }}>
-                ENTER TEXT:
-              </div>
-              <div className="modern-editor-wrapper">
-                <div className="editor-top-bar">
-                  <div className="editor-title-group">
-                    <span className="editor-dot"></span>
-                    <span className="editor-heading">DOCUMENT SOURCE</span>
-                  </div>
-                  <div className="editor-stats-pills">
-                    <span className="stat-pill">{wordCount} {wordCount === 1 ? 'Word' : 'Words'}</span>
-                    <span className="stat-pill-divider">•</span>
-                    <span className="stat-pill">{charCount} {charCount === 1 ? 'Char' : 'Chars'}</span>
-                  </div>
-                </div>
-                <textarea
-                  className="source-textarea"
-                  placeholder="Enter or paste text to redact PII, gauge sentiment, or extract entities..."
-                  value={inputText}
-                  onChange={(e) => setInputText(e.target.value)}
-                />
-              </div>
-
-              <div className="action-row">
-                <button
-                  type="button"
-                  className="btn effect01"
-                  style={{ width: '170px' }}
-                  onClick={handleRunAnalysis}
-                  disabled={isAnalyzing || !inputText.trim() || !canRunAnalysis}
-                  title={
-                    !isAuthenticated
-                      ? 'Sign in via Entra ID in the sidebar to run analysis'
-                      : !isModelConnected
-                        ? 'Connect to Azure Model in the sidebar to run analysis'
-                        : 'Run text analysis'
-                  }
-                >
-                  <span>
-                    {isAnalyzing ? (
-                      <>
-                        <Loader2 size={13} className="spinner-icon" />
-                        ANALYZING...
-                      </>
-                    ) : (
-                      'RUN ANALYSIS'
-                    )}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  className="btn effect01"
-                  style={{ width: '170px' }}
-                  onClick={handleClearSession}
-                >
-                  <span>CLEAR SESSION</span>
-                </button>
-
-                {!canRunAnalysis && (
-                  <div className="analysis-gate-pill">
-                    <span className="gate-lock-dot"></span>
-                    <span>
-                      {!isAuthenticated
-                        ? 'Sign in via Entra ID required'
-                        : 'Azure model connection required'}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {isAnalyzing && (
-                <div className="analysis-status-message">
-                  <div className="analysis-status-dots">
-                    <span className="status-dot-bounce"></span>
-                    <span className="status-dot-bounce"></span>
-                    <span className="status-dot-bounce"></span>
-                  </div>
-                  <span>Running Azure AI Language analysis... Please wait</span>
-                </div>
-              )}
-            </div>
-
-            {/* Right Column: Output */}
-            <div className="workspace-column">
-              <div className="column-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>OUTPUT</span>
-                {analysisResult && (
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button
-                      type="button"
-                      className="action-icon-pill"
-                      onClick={copyResult}
-                      title="Copy Output"
-                    >
-                      {copied ? <Check size={12} /> : <Copy size={12} />}
-                      <span>{copied ? 'Copied' : 'Copy'}</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="action-icon-pill"
-                      onClick={downloadResult}
-                      title="Download Output"
-                    >
-                      <Download size={12} />
-                      <span>Download</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <div className="output-card-container">
-                {analysisResult ? (
-                  <div className="output-card-filled">
-                    {isSampleResult && (
-                      <div className="sample-output-preview-bar">
-                        <span className="sample-preview-title">
-                          Sample Output Preview
-                        </span>
-                        <span className="sample-preview-sub">
-                          Pre-generated sample • Not run using a live model
-                        </span>
-                      </div>
-                    )}
-                    <FormattedOutput text={analysisResult} task={selectedTask} />
-                  </div>
-                ) : (
-                  <div className="output-card">
-                    {isAnalyzing ? (
-                      'Analyzing text with Azure AI Language Services... Output will appear here.'
-                    ) : !isAuthenticated ? (
-                      <div className="output-empty-state">
-                        <span className="output-empty-pill">Authentication Required</span>
-                        <p>Sign in via Entra ID in the sidebar to enable text analysis.</p>
-                      </div>
-                    ) : !isModelConnected ? (
-                      <div className="output-empty-state">
-                        <span className="output-empty-pill">Model Connection Required</span>
-                        <p>Configure your Foundry Endpoint and Model Deployment in the sidebar to enable analysis.</p>
-                      </div>
-                    ) : (
-                      'Select a task, enter text, and click RUN ANALYSIS to view results.'
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {analysisLatency !== null && (
-                <div style={{ fontSize: '10.5px', color: '#666666', marginTop: '6px' }}>
-                  {isSampleResult ? (
-                    <>
-                      <strong>Sample Mode</strong> ({analysisLatency}s) • Pre-generated sample output (no live model used)
-                    </>
-                  ) : (
-                    <>
-                      Processed in <strong>{analysisLatency}s</strong>{modelDeployment ? ` • Model: ${modelDeployment}` : ''}
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
+          <StudioPage
+            selectedTask={selectedTask}
+            setSelectedTask={setSelectedTask}
+            inputText={inputText}
+            setInputText={setInputText}
+            wordCount={wordCount}
+            charCount={charCount}
+            handleRunAnalysis={handleRunAnalysis}
+            isAnalyzing={isAnalyzing}
+            canRunAnalysis={canRunAnalysis}
+            isAuthenticated={isAuthenticated}
+            isModelConnected={isModelConnected}
+            handleClearSession={handleClearSession}
+            analysisResult={analysisResult}
+            isSampleResult={isSampleResult}
+            analysisLatency={analysisLatency}
+            modelDeployment={modelDeployment}
+            copied={copied}
+            copyResult={copyResult}
+            downloadResult={downloadResult}
+          />
         )}
 
         {/* TAB 2: TEXT ANALYSIS CHAT ASSISTANT */}
         {activeTab === 'chat' && (
-          <div className="chat-workspace">
-            <div className="chat-header-row">
-              <div className="column-title" style={{ fontSize: '13px' }}>
-                CONVERSATION WITH TEXT-ANALYSIS-AGENT
-              </div>
-              <button
-                type="button"
-                className="btn effect01"
-                style={{ width: '140px', height: '36px' }}
-                onClick={() => setChatMessages([])}
-              >
-                <span>CLEAR CHAT</span>
-              </button>
-            </div>
-
-            <div className="description-text" style={{ marginTop: '-12px' }}>
-              Ask questions, test phrases, request iterative redaction, or analyze sentiment.
-            </div>
-
-            <div className="assistant-hero-banner">
-              <div className="assistant-hero-badge">
-                <Sparkles size={12} strokeWidth={2.5} />
-                <span>AZURE AI LANGUAGE SERVICES</span>
-              </div>
-              <h2 className="assistant-hero-title">Text Intelligence Assistant</h2>
-              <p className="assistant-hero-desc">
-                Connected to <strong>{agentName || 'Text-Analysis-Agent'}</strong> {modelDeployment ? `(${modelDeployment})` : ''} with direct access to Azure Language MCP tools. Type any message or query below to start.
-              </p>
-              <div className="assistant-status-row">
-                <span className="live-pill">
-                  <span className="live-dot-pulse"></span>
-                  MCP Language Pipeline Active
-                </span>
-                <span className="agent-target-pill">
-                  Target: {modelDeployment || 'Azure GPT-4.1'}
-                </span>
-              </div>
-            </div>
-
-            {/* Messages Stream */}
-            {chatMessages.length > 0 && (
-              <div className="chat-messages-container">
-                {chatMessages.map((msg, idx) => {
-                  const isAssistant = msg.role === 'assistant' || msg.sender === 'assistant';
-                  return (
-                    <div key={idx} className={`chat-message-row ${isAssistant ? 'assistant-row' : 'user-row'}`}>
-                      {isAssistant && (
-                        <div className="message-avatar assistant-avatar" title="Text Analysis Agent">
-                          <Sparkles size={14} strokeWidth={2.2} />
-                        </div>
-                      )}
-                      <div className={`message-bubble ${isAssistant ? 'assistant' : 'user'}`}>
-                        {isAssistant ? (
-                          <>
-                            {msg.isSample && (
-                              <div className="sample-chat-badge">
-                                <span className="sample-badge-dot"></span>
-                                <strong>Sample Preview</strong>
-                                <span>• Pre-generated test query</span>
-                              </div>
-                            )}
-                            <FormattedOutput text={msg.content || msg.text} isChat={true} />
-                          </>
-                        ) : (
-                          <div className="user-message-text">{msg.content || msg.text}</div>
-                        )}
-                      </div>
-                      {!isAssistant && (
-                        <div className="message-avatar user-avatar" title="User">
-                          <User size={14} strokeWidth={2.2} />
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-                {isChatLoading && (
-                  <div className="chat-message-row assistant-row">
-                    <div className="message-avatar assistant-avatar">
-                      <Sparkles size={14} strokeWidth={2.2} />
-                    </div>
-                    <div className="message-bubble assistant loading-bubble">
-                      <Loader2 size={13} className="spinner-icon" />
-                      <span>Azure Language Agent is thinking...</span>
-                    </div>
-                  </div>
-                )}
-                <div ref={chatBottomRef} />
-              </div>
-            )}
-
-            <div className="suggested-section">
-              <div className="section-sub-label">Suggested queries:</div>
-              <div className="suggested-grid">
-                <button
-                  type="button"
-                  className="btn effect01"
-                  style={{ height: '40px', fontSize: '10px' }}
-                  onClick={() => handleSendMessage('Redact all personal information from: John Doe, phone 555-0192, SSN 123-45-6789, living in Seattle.')}
-                >
-                  <span>REDACT PII FROM A CONTACT PROFILE</span>
-                </button>
-                <button
-                  type="button"
-                  className="btn effect01"
-                  style={{ height: '40px', fontSize: '10px' }}
-                  onClick={() => handleSendMessage('Analyze the sentiment of: I loved the speed of delivery, but the customer support representative was very rude.')}
-                >
-                  <span>ANALYZE SENTIMENT OF A FEEDBACK EMAIL</span>
-                </button>
-                <button
-                  type="button"
-                  className="btn effect01"
-                  style={{ height: '40px', fontSize: '10px' }}
-                  onClick={() => handleSendMessage('Extract passenger, flight, and seat info from: Passenger Mary Lane flying UA402 to Chicago on Seat 14B.')}
-                >
-                  <span>EXTRACT TRAVEL LOGISTICS FROM A BOOKING</span>
-                </button>
-              </div>
-            </div>
-
-            <form
-              className="chat-input-bar"
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleSendMessage();
-              }}
-            >
-              <input
-                type="text"
-                className="chat-input-field"
-                placeholder={
-                  !isAuthenticated
-                    ? "Sign in via Entra ID in the sidebar to chat with the agent..."
-                    : !isModelConnected
-                      ? "Connect to an Azure model in the sidebar to chat..."
-                      : "Type your message or prompt here..."
-                }
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                disabled={isChatLoading || !canRunAnalysis}
-              />
-              <button
-                type="submit"
-                className="chat-send-btn"
-                title={!canRunAnalysis ? "Authentication & Model Connection required" : "Send message"}
-                disabled={isChatLoading || !chatInput.trim() || !canRunAnalysis}
-              >
-                <ArrowUp size={18} strokeWidth={2.5} />
-              </button>
-            </form>
-          </div>
+          <ChatPage
+            agentName={agentName}
+            modelDeployment={modelDeployment}
+            chatMessages={chatMessages}
+            setChatMessages={setChatMessages}
+            isChatLoading={isChatLoading}
+            chatBottomRef={chatBottomRef}
+            handleSendMessage={handleSendMessage}
+            chatInput={chatInput}
+            setChatInput={setChatInput}
+            isAuthenticated={isAuthenticated}
+            isModelConnected={isModelConnected}
+            canRunAnalysis={canRunAnalysis}
+          />
         )}
       </main>
     </div>

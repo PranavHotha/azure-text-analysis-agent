@@ -1,9 +1,0 @@
-https://learn.microsoft.com/en-us/entra/external-id/customers/how-to-user-flow-add-application
-
-https://learn.microsoft.com/en-us/entra/external-id/customers/how-to-custom-oidc-federation-customers
-
-https://learn.microsoft.com/en-us/entra/external-id/customers/overview-customers-ciam
-
-https://learn.microsoft.com/en-us/entra/external-id/tenant-configurations
-
-https://learn.microsoft.com/en-us/entra/identity-platform/tutorial-single-page-app-react-prepare-app?tabs=external-tenant

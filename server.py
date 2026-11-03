@@ -42,12 +42,8 @@ try:
 except Exception as build_err:
     print(f"[WARN] Frontend auto-build skipped: {build_err}", file=sys.stderr)
 
-# Load environment configuration from agent/.env
-agent_env_path = os.path.join(base_dir, "agent", ".env")
-if os.path.exists(agent_env_path):
-    load_dotenv(dotenv_path=agent_env_path)
-else:
-    load_dotenv()
+# Load environment configuration from .env if present
+load_dotenv()
 
 app = FastAPI(title="Azure Text Analysis Agent API", version="1.0.0")
 
@@ -309,7 +305,7 @@ def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
     if not client:
         raise HTTPException(
             status_code=503,
-            detail="Azure AI target is not configured. Please enter your Foundry Endpoint, Model Deployment, and Agent Name in the sidebar and click Save & Connect, or configure them in agent/.env."
+            detail="Azure AI target is not configured. Please enter your Foundry Endpoint, Model Deployment, and Agent Name in the sidebar and click Connect, or configure them in .env."
         )
 
     agent_name = os.getenv("AGENT_NAME", "Text-Analysis-Agent")
@@ -350,7 +346,7 @@ def analyze(req: AnalyzeRequest, authorization: Optional[str] = Header(None)):
     if not client:
         raise HTTPException(
             status_code=503,
-            detail="Azure AI target is not configured. Please enter your Foundry Endpoint, Model Deployment, and Agent Name in the sidebar and click Save & Connect, or configure them in agent/.env."
+            detail="Azure AI target is not configured. Please enter your Foundry Endpoint, Model Deployment, and Agent Name in the sidebar and click Connect, or configure them in .env."
         )
 
     agent_name = os.getenv("AGENT_NAME", "Text-Analysis-Agent")
@@ -429,4 +425,5 @@ if os.path.exists(dist_dir):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
