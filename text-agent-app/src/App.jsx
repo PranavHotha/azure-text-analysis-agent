@@ -30,10 +30,17 @@ export default function App() {
     : null;
   const isLoading = false;
 
-  const loginWithRedirect = () => {
-    instance.loginRedirect(loginRequest).catch((err) => {
+  const [tenantId, setTenantId] = useState('6bd2f078-9ba4-426d-818b-a2250417bcac');
+
+  const loginWithRedirect = (customTenant) => {
+    const tid = (customTenant || tenantId || '6bd2f078-9ba4-426d-818b-a2250417bcac').trim();
+    const req = {
+      ...loginRequest,
+      authority: `https://login.microsoftonline.com/${tid}`,
+    };
+    instance.loginRedirect(req).catch((err) => {
       console.warn("Redirect login failed, falling back to popup:", err);
-      instance.loginPopup(loginRequest).catch(console.error);
+      instance.loginPopup(req).catch(console.error);
     });
   };
 
@@ -46,20 +53,20 @@ export default function App() {
   const getAuthHeaders = async () => {
     const headers = { 'Content-Type': 'application/json' };
     if (isAuthenticated && activeAccount) {
+      const tid = (tenantId || activeAccount.tenantId || '6bd2f078-9ba4-426d-818b-a2250417bcac').trim();
+      const req = {
+        ...loginRequest,
+        authority: `https://login.microsoftonline.com/${tid}`,
+        account: activeAccount,
+      };
       try {
-        const response = await instance.acquireTokenSilent({
-          ...loginRequest,
-          account: activeAccount,
-        });
+        const response = await instance.acquireTokenSilent(req);
         if (response?.accessToken) {
           headers['Authorization'] = `Bearer ${response.accessToken}`;
         }
       } catch {
         try {
-          const popupRes = await instance.acquireTokenPopup({
-            ...loginRequest,
-            account: activeAccount,
-          });
+          const popupRes = await instance.acquireTokenPopup(req);
           if (popupRes?.accessToken) {
             headers['Authorization'] = `Bearer ${popupRes.accessToken}`;
           }
@@ -350,6 +357,8 @@ export default function App() {
         isAuthenticated={isAuthenticated}
         isLoading={isLoading}
         user={user}
+        tenantId={tenantId}
+        setTenantId={setTenantId}
         loginWithRedirect={loginWithRedirect}
         handleSignOut={handleSignOut}
         foundryEndpoint={foundryEndpoint}

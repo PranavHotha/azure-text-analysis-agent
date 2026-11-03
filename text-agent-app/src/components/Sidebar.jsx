@@ -7,6 +7,8 @@ export default function Sidebar({
   isAuthenticated,
   isLoading,
   user,
+  tenantId,
+  setTenantId,
   loginWithRedirect,
   handleSignOut,
   foundryEndpoint,
@@ -123,14 +125,39 @@ export default function Sidebar({
           >
             <span>{configSaved ? 'Connected ✓' : 'Connect'}</span>
           </button>
+          {!isAuthenticated && (
+            <div className="input-group" style={{ marginTop: '12px', marginBottom: '4px' }}>
+              <div className="input-label-row">
+                <span className="input-label">Azure Tenant ID:</span>
+                <span className="status-dot"></span>
+              </div>
+              <input
+                type="text"
+                className="text-input-field"
+                value={tenantId}
+                autoComplete="off"
+                autoCorrect="off"
+                spellCheck="false"
+                placeholder="e.g. 6bd2f078-9ba4-426d-818b-a2250417bcac"
+                onChange={(e) => setTenantId(e.target.value)}
+              />
+            </div>
+          )}
+
           {!isAuthenticated ? (
-            <button
-              type="button"
-              className="btn effect01"
-              onClick={() => loginWithRedirect()}
-            >
-              <span>Sign In to Access</span>
-            </button>
+            tenantId.trim() ? (
+              <button
+                type="button"
+                className="btn effect01"
+                onClick={() => loginWithRedirect(tenantId.trim())}
+              >
+                <span>Sign In to Access</span>
+              </button>
+            ) : (
+              <div style={{ fontSize: '11px', color: '#888888', textAlign: 'center', padding: '6px' }}>
+                Enter your Azure Tenant ID above to enable Sign In
+              </div>
+            )
           ) : (
             <button
               type="button"
