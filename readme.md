@@ -100,7 +100,7 @@ cd text-agent-app
 npm install
 npm run dev
 ```
-Open [http://localhost:5173](http://localhost:5173) in your browser.
+Open your local development server in your browser.
 
 ---
 
