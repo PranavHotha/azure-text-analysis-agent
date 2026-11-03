@@ -36,11 +36,21 @@ export default function App() {
     try {
       [sessionStorage, localStorage].forEach((storage) => {
         Object.keys(storage).forEach((k) => {
-          if (k.toLowerCase().includes("interaction")) {
-            storage.removeItem(k);
+          if (k.toLowerCase().includes("interaction") || k.includes("msal.")) {
+            if (k.toLowerCase().includes("status") || k.toLowerCase().includes("interaction")) {
+              storage.removeItem(k);
+            }
           }
         });
       });
+      if (typeof document !== "undefined" && document.cookie) {
+        document.cookie.split(";").forEach((c) => {
+          const name = c.split("=")[0].trim();
+          if (name.toLowerCase().includes("interaction") || name.toLowerCase().includes("status")) {
+            document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+          }
+        });
+      }
     } catch {}
   };
 
