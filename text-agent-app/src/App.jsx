@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Settings, ChevronRight } from 'lucide-react';
 import { useAuth0 } from '@auth0/auth0-react';
 import Sidebar from './components/Sidebar';
-import StudioPage from './pages/AgentPage';
+import AgentPage from './pages/AgentPage';
 import ChatPage from './pages/ChatPage';
 import './css/modern-button.css';
 import './css/App.css';

@@ -2,7 +2,7 @@ import React from 'react';
 import { Loader2, Copy, Check, Download } from 'lucide-react';
 import FormattedOutput from '../components/FormattedOutput';
 
-export default function StudioPage({
+export default function AgentPage({
   selectedTask,
   setSelectedTask,
   inputText,

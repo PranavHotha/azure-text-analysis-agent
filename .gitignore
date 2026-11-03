@@ -14,10 +14,8 @@ labenv/
 # Node
 node_modules/
 text-agent-app/node_modules/
-text-agent-app/dist/
 text-agent-app/dist-ssr/
 *.log
 
 # Misc
 .DS_Store
-

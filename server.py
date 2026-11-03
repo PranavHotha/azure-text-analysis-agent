@@ -26,21 +26,22 @@ from azure.ai.projects import AIProjectClient
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
 
-# Auto-rebuild text-agent-app/dist if text-agent-app/src/App.jsx is newer than text-agent-app/dist/index.html
-try:
-    app_jsx_path = os.path.join(base_dir, "text-agent-app", "src", "App.jsx")
-    dist_index_path = os.path.join(base_dir, "text-agent-app", "dist", "index.html")
-    if os.path.exists(app_jsx_path):
-        if not os.path.exists(dist_index_path) or os.path.getmtime(app_jsx_path) > os.path.getmtime(dist_index_path):
-            print("[INFO] Rebuilding text-agent-app production bundle...")
-            subprocess.run(
-                ["npm", "--prefix", "text-agent-app", "run", "build"],
-                cwd=base_dir,
-                shell=(os.name == "nt"),
-                check=False,
-            )
-except Exception as build_err:
-    print(f"[WARN] Frontend auto-build skipped: {build_err}", file=sys.stderr)
+# Auto-rebuild text-agent-app/dist in local environments if needed
+if not os.environ.get("RENDER"):
+    try:
+        app_jsx_path = os.path.join(base_dir, "text-agent-app", "src", "App.jsx")
+        dist_index_path = os.path.join(base_dir, "text-agent-app", "dist", "index.html")
+        if os.path.exists(app_jsx_path) and os.path.exists(dist_index_path):
+            if os.path.getmtime(app_jsx_path) > os.path.getmtime(dist_index_path):
+                print("[INFO] Rebuilding text-agent-app production bundle...")
+                subprocess.run(
+                    ["npm", "--prefix", "text-agent-app", "run", "build"],
+                    cwd=base_dir,
+                    shell=(os.name == "nt"),
+                    check=False,
+                )
+    except Exception as build_err:
+        print(f"[WARN] Frontend auto-build skipped: {build_err}", file=sys.stderr)
 
 # Load environment configuration from .env if present
 load_dotenv()
@@ -408,19 +409,30 @@ def analyze(req: AnalyzeRequest, authorization: Optional[str] = Header(None)):
     return {"result": output, "elapsed": elapsed, "task": req.task}
 
 
-# Serve React production build if available
+# Serve React production build
 dist_dir = os.path.join(base_dir, "text-agent-app", "dist")
-if os.path.exists(dist_dir):
-    app.mount("/assets", StaticFiles(directory=os.path.join(dist_dir, "assets")), name="assets")
+assets_dir = os.path.join(dist_dir, "assets")
+if os.path.exists(assets_dir):
+    app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
 
-    @app.get("/{full_path:path}")
-    def serve_react_app(full_path: str):
-        if full_path.startswith("api/"):
-            raise HTTPException(status_code=404, detail="API route not found")
-        file_path = os.path.join(dist_dir, full_path)
-        if os.path.exists(file_path) and os.path.isfile(file_path):
-            return FileResponse(file_path)
-        return FileResponse(os.path.join(dist_dir, "index.html"))
+@app.get("/")
+def serve_index():
+    index_file = os.path.join(dist_dir, "index.html")
+    if os.path.exists(index_file):
+        return FileResponse(index_file)
+    return {"message": "Azure Text Analysis API is active", "status": "online"}
+
+@app.get("/{full_path:path}")
+def serve_react_app(full_path: str):
+    if full_path.startswith("api/"):
+        raise HTTPException(status_code=404, detail="API route not found")
+    file_path = os.path.join(dist_dir, full_path)
+    if os.path.exists(file_path) and os.path.isfile(file_path):
+        return FileResponse(file_path)
+    index_file = os.path.join(dist_dir, "index.html")
+    if os.path.exists(index_file):
+        return FileResponse(index_file)
+    raise HTTPException(status_code=404, detail="Page not found")
 
 
 if __name__ == "__main__":
