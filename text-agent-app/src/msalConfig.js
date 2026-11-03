@@ -1,7 +1,7 @@
 import { PublicClientApplication } from "@azure/msal-browser";
 
 export const CLIENT_ID = "2078b9c6-6f3f-49f0-9d5d-e2860d5a71d3";
-export const TENANT = "common";
+export const TENANT = "6bd2f078-9ba4-426d-818b-a2250417bcac";
 
 export const msalConfig = {
   auth: {
