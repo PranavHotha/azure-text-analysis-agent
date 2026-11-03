@@ -38,6 +38,7 @@ export default function App() {
     const req = {
       ...loginRequest,
       authority: `https://login.microsoftonline.com/${tid}`,
+      redirectUri: window.location.origin,
     };
     instance.loginRedirect(req).catch((err) => {
       console.warn("Redirect login failed, falling back to popup:", err);
