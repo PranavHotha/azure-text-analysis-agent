@@ -8,28 +8,35 @@ marked.setOptions({
 });
 
 const PII_TAG_REGEX = /\[(Person|Name|Full Name|Phone Number|Phone|Email|Address|Street Address|Location|City|State|Zip Code|Postal Code|SSN|Credit Card Number|Credit Card|Date|Organization|Company|IP Address|URL|Account Number|Account|Password|Passport Number|ID Number)\]/gi;
+const PII_LINK_REGEX = /\[(Person|Name|Full Name|Phone Number|Phone|Email|Address|Street Address|Location|City|State|Zip Code|Postal Code|SSN|Credit Card Number|Credit Card|Date|Organization|Company|IP Address|URL|Account Number|Account|Password|Passport Number|ID Number)\]\([^)]+\)/gi;
 
 export default function FormattedOutput({ text, task = 'redact', isChat = false }) {
   const [viewMode, setViewMode] = useState('formatted'); // 'formatted' | 'raw'
   const [copied, setCopied] = useState(false);
 
-  // Parse PII tags and count
-  const piiTagsFound = useMemo(() => {
-    if (!text) return [];
-    const matches = text.match(PII_TAG_REGEX);
-    return matches ? Array.from(new Set(matches.map(m => m.trim()))) : [];
+  // Clean raw text from accidental markdown links on PII tags: e.g. [Email](val) -> [Email]
+  const cleanSourceText = useMemo(() => {
+    if (!text) return '';
+    return text.replace(PII_LINK_REGEX, '[$1]');
   }, [text]);
 
+  // Parse PII tags and count
+  const piiTagsFound = useMemo(() => {
+    if (!cleanSourceText) return [];
+    const matches = cleanSourceText.match(PII_TAG_REGEX);
+    return matches ? Array.from(new Set(matches.map(m => m.trim()))) : [];
+  }, [cleanSourceText]);
+
   const totalPiiCount = useMemo(() => {
-    if (!text) return 0;
-    const matches = text.match(PII_TAG_REGEX);
+    if (!cleanSourceText) return 0;
+    const matches = cleanSourceText.match(PII_TAG_REGEX);
     return matches ? matches.length : 0;
-  }, [text]);
+  }, [cleanSourceText]);
 
   // Detect Sentiment Polarity if present
   const sentimentMeta = useMemo(() => {
-    if (!text || (task !== 'sentiment' && !text.toLowerCase().includes('sentiment'))) return null;
-    const lower = text.toLowerCase();
+    if (!cleanSourceText || (task !== 'sentiment' && !cleanSourceText.toLowerCase().includes('sentiment'))) return null;
+    const lower = cleanSourceText.toLowerCase();
     let polarity = null;
     if (lower.includes('positive') && lower.includes('negative')) polarity = 'MIXED';
     else if (lower.includes('positive')) polarity = 'POSITIVE';
@@ -37,9 +44,9 @@ export default function FormattedOutput({ text, task = 'redact', isChat = false 
     else if (lower.includes('neutral')) polarity = 'NEUTRAL';
 
     // Try extracting confidence percentages
-    const posMatch = text.match(/positive[:\s]+(\d+)%/i);
-    const negMatch = text.match(/negative[:\s]+(\d+)%/i);
-    const neuMatch = text.match(/neutral[:\s]+(\d+)%/i);
+    const posMatch = cleanSourceText.match(/positive[:\s]+(\d+)%/i);
+    const negMatch = cleanSourceText.match(/negative[:\s]+(\d+)%/i);
+    const neuMatch = cleanSourceText.match(/neutral[:\s]+(\d+)%/i);
 
     return {
       polarity,
@@ -47,14 +54,14 @@ export default function FormattedOutput({ text, task = 'redact', isChat = false 
       negative: negMatch ? parseInt(negMatch[1], 10) : null,
       neutral: neuMatch ? parseInt(neuMatch[1], 10) : null,
     };
-  }, [text, task]);
+  }, [cleanSourceText, task]);
 
   // Convert markdown to HTML with enhanced PII tag badges
   const formattedHtml = useMemo(() => {
-    if (!text) return '';
+    if (!cleanSourceText) return '';
 
-    // First, convert markdown to raw HTML
-    let html = marked.parse(text);
+    // First convert markdown to raw HTML on sanitized text
+    let html = marked.parse(cleanSourceText);
 
     // Replace [Category] with styled monochrome tag badge
     html = html.replace(PII_TAG_REGEX, (match) => {
@@ -63,7 +70,7 @@ export default function FormattedOutput({ text, task = 'redact', isChat = false 
     });
 
     return html;
-  }, [text]);
+  }, [cleanSourceText]);
 
   const handleCopy = () => {
     if (!text) return;

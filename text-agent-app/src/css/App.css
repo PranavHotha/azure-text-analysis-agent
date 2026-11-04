@@ -1262,6 +1262,7 @@ body {
   margin-bottom: 4px;
   gap: 8px;
   flex-wrap: wrap;
+  user-select: none;
 }
 
 .chat-output-meta-pills {
@@ -1320,6 +1321,7 @@ body {
   border-radius: 6px;
   padding: 6px 10px;
   flex-wrap: wrap;
+  user-select: none;
 }
 
 .chat-legend-title {
@@ -1328,6 +1330,7 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: #64748B;
+  user-select: none;
 }
 
 .chat-legend-chips {
@@ -1335,6 +1338,7 @@ body {
   align-items: center;
   gap: 5px;
   flex-wrap: wrap;
+  user-select: none;
 }
 
 .chat-legend-chip {
@@ -1349,6 +1353,7 @@ body {
   font-weight: 700;
   text-transform: uppercase;
   color: #0F172A;
+  user-select: none;
 }
 
 .chat-sentiment-compact-card {
@@ -1360,6 +1365,7 @@ body {
   border-radius: 6px;
   padding: 8px 12px;
   margin-bottom: 4px;
+  user-select: none;
 }
 
 .chat-metric-row {
