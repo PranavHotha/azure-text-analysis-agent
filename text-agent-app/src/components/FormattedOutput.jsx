@@ -29,6 +29,12 @@ export default function FormattedOutput({ text, task = 'redact', isChat = false 
 
   const totalPiiCount = useMemo(() => {
     if (!cleanSourceText) return 0;
+    // Check if the summary explicitly states total redactions
+    const summaryMatch = cleanSourceText.match(/Total Redactions:\s*(\d+)/i);
+    if (summaryMatch) {
+      return parseInt(summaryMatch[1], 10);
+    }
+    // Fall back to counting the inline redacted entity tags
     const matches = cleanSourceText.match(PII_TAG_REGEX);
     return matches ? matches.length : 0;
   }, [cleanSourceText]);
@@ -91,7 +97,7 @@ export default function FormattedOutput({ text, task = 'redact', isChat = false 
               {totalPiiCount > 0 && (
                 <div className="chat-summary-badge pii">
                   <ShieldCheck size={12} strokeWidth={2.5} />
-                  <span>{totalPiiCount} PII Redacted</span>
+                  <span>{totalPiiCount} PII {totalPiiCount === 1 ? 'ENTITY' : 'ENTITIES'} REDACTED</span>
                 </div>
               )}
               {sentimentMeta?.polarity && (
@@ -176,7 +182,7 @@ export default function FormattedOutput({ text, task = 'redact', isChat = false 
           {task === 'redact' && totalPiiCount > 0 && (
             <div className="output-summary-badge">
               <ShieldCheck size={14} />
-              <span>{totalPiiCount} PII Tokens Redacted</span>
+              <span>{totalPiiCount} PII {totalPiiCount === 1 ? 'ENTITY' : 'ENTITIES'} REDACTED</span>
             </div>
           )}
 
