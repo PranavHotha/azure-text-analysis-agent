@@ -77,9 +77,15 @@ export default function FormattedOutput({ text, task = 'redact', isChat = false 
   const formattedHtml = useMemo(() => {
     if (!cleanSourceText) return '';
 
-    // Auto-sync summary text if the LLM hallucinated the total number of redactions
     let textToRender = cleanSourceText;
-    if (totalPiiCount > 0) {
+
+    // In chat assistant view, remove redundant Redaction Summary section since top pill & legend chips display it
+    if (isChat) {
+      textToRender = textToRender
+        .replace(/#{0,4}\s*Redaction Summary:[\s\S]*?(?=(?:\n#{1,4}\s+|\n\s*(?:Sentiment Analysis|Entity Extraction|Confidence Scores|Overall Sentiment):|$))/i, '')
+        .trim();
+    } else if (totalPiiCount > 0) {
+      // Auto-sync summary text in Studio if the LLM hallucinated the total number of redactions
       textToRender = textToRender.replace(/(Total Redactions:\s*)\d+/i, `$1${totalPiiCount}`);
     }
 
@@ -93,7 +99,7 @@ export default function FormattedOutput({ text, task = 'redact', isChat = false 
     });
 
     return html;
-  }, [cleanSourceText, totalPiiCount]);
+  }, [cleanSourceText, totalPiiCount, isChat]);
 
   const handleCopy = () => {
     if (!text) return;
