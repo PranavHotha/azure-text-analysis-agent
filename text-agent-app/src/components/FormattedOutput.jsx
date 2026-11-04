@@ -7,7 +7,7 @@ marked.setOptions({
   breaks: true,
 });
 
-const PII_TAG_REGEX = /\[(Person|Phone Number|Email|Address|SSN|Credit Card Number|Date|Organization|Location|IP Address|URL|Account Number|Password|Passport Number)\]/gi;
+const PII_TAG_REGEX = /\[(Person|Name|Full Name|Phone Number|Phone|Email|Address|Street Address|Location|City|State|Zip Code|Postal Code|SSN|Credit Card Number|Credit Card|Date|Organization|Company|IP Address|URL|Account Number|Account|Password|Passport Number|ID Number)\]/gi;
 
 export default function FormattedOutput({ text, task = 'redact', isChat = false }) {
   const [viewMode, setViewMode] = useState('formatted'); // 'formatted' | 'raw'
@@ -17,7 +17,7 @@ export default function FormattedOutput({ text, task = 'redact', isChat = false 
   const piiTagsFound = useMemo(() => {
     if (!text) return [];
     const matches = text.match(PII_TAG_REGEX);
-    return matches ? Array.from(new Set(matches)) : [];
+    return matches ? Array.from(new Set(matches.map(m => m.trim()))) : [];
   }, [text]);
 
   const totalPiiCount = useMemo(() => {
@@ -74,13 +74,89 @@ export default function FormattedOutput({ text, task = 'redact', isChat = false 
 
   if (!text) return null;
 
-  // In chat messages, render inline formatted markdown
+  // In chat messages, render enhanced formatted view with compliance headers and category legend
   if (isChat) {
     return (
-      <div 
-        className="chat-formatted-markdown"
-        dangerouslySetInnerHTML={{ __html: formattedHtml }}
-      />
+      <div className="chat-formatted-output-wrapper">
+        {(totalPiiCount > 0 || sentimentMeta?.polarity) && (
+          <div className="chat-output-header-bar">
+            <div className="chat-output-meta-pills">
+              {totalPiiCount > 0 && (
+                <div className="chat-summary-badge pii">
+                  <ShieldCheck size={12} strokeWidth={2.5} />
+                  <span>{totalPiiCount} PII Redacted</span>
+                </div>
+              )}
+              {sentimentMeta?.polarity && (
+                <div className="chat-summary-badge sentiment">
+                  <BarChart3 size={12} strokeWidth={2.5} />
+                  <span>Polarity: {sentimentMeta.polarity}</span>
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              className="chat-copy-mini-btn"
+              onClick={handleCopy}
+              title="Copy message"
+            >
+              {copied ? <Check size={11} strokeWidth={2.5} /> : <Copy size={11} strokeWidth={2.5} />}
+              <span>{copied ? 'Copied' : 'Copy'}</span>
+            </button>
+          </div>
+        )}
+
+        {piiTagsFound.length > 0 && (
+          <div className="chat-pii-legend">
+            <span className="chat-legend-title">Categories Masked:</span>
+            <div className="chat-legend-chips">
+              {piiTagsFound.map((tag) => (
+                <span key={tag} className="chat-legend-chip">
+                  <Tag size={10} strokeWidth={2.2} />
+                  {tag.replace(/[[\]]/g, '')}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {sentimentMeta && (sentimentMeta.positive !== null || sentimentMeta.negative !== null) && (
+          <div className="chat-sentiment-compact-card">
+            {sentimentMeta.positive !== null && (
+              <div className="chat-metric-row">
+                <span className="chat-metric-label">Positive</span>
+                <div className="chat-metric-bar-bg">
+                  <div className="chat-metric-bar-fill" style={{ width: `${sentimentMeta.positive || 0}%` }} />
+                </div>
+                <span className="chat-metric-value">{sentimentMeta.positive}%</span>
+              </div>
+            )}
+            {sentimentMeta.negative !== null && (
+              <div className="chat-metric-row">
+                <span className="chat-metric-label">Negative</span>
+                <div className="chat-metric-bar-bg">
+                  <div className="chat-metric-bar-fill" style={{ width: `${sentimentMeta.negative || 0}%` }} />
+                </div>
+                <span className="chat-metric-value">{sentimentMeta.negative}%</span>
+              </div>
+            )}
+            {sentimentMeta.neutral !== null && (
+              <div className="chat-metric-row">
+                <span className="chat-metric-label">Neutral</span>
+                <div className="chat-metric-bar-bg">
+                  <div className="chat-metric-bar-fill" style={{ width: `${sentimentMeta.neutral || 0}%` }} />
+                </div>
+                <span className="chat-metric-value">{sentimentMeta.neutral}%</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div 
+          className="chat-formatted-markdown"
+          dangerouslySetInnerHTML={{ __html: formattedHtml }}
+        />
+      </div>
     );
   }
 
