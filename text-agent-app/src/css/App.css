@@ -304,7 +304,7 @@ body {
 /* Main Content */
 .main-content {
   flex: 1;
-  padding: 36px 48px;
+  padding: 36px 48px 100px 48px;
   display: flex;
   flex-direction: column;
   gap: 28px;
@@ -590,6 +590,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  padding-bottom: 40px;
 }
 
 .chat-header-row {
@@ -713,6 +714,7 @@ body {
   height: 48px;
   width: 100%;
   margin-top: 10px;
+  margin-bottom: 30px;
   background: #F8FAFC;
   padding: 4px 6px 4px 16px;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
@@ -1668,7 +1670,7 @@ body {
     border-bottom: 1.5px solid #000000;
   }
   .main-content {
-    padding: 24px 16px;
+    padding: 24px 16px 120px 16px;
   }
   .main-content.sidebar-collapsed-view {
     padding-left: 68px;
