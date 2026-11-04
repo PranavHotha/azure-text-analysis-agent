@@ -29,14 +29,25 @@ export default function FormattedOutput({ text, task = 'redact', isChat = false 
 
   const totalPiiCount = useMemo(() => {
     if (!cleanSourceText) return 0;
-    // Check if the summary explicitly states total redactions
+    
+    // Count the actual redacted entity tags inside the "Redacted Text" section
+    // (or across the full text prior to "Redaction Summary") so model summary miscounts don't throw it off
+    const summaryIndex = cleanSourceText.search(/Redaction Summary:/i);
+    const bodyText = summaryIndex !== -1 ? cleanSourceText.slice(0, summaryIndex) : cleanSourceText;
+    const bodyMatches = bodyText.match(PII_TAG_REGEX);
+    
+    if (bodyMatches && bodyMatches.length > 0) {
+      return bodyMatches.length;
+    }
+
+    // Fallback: Check if the summary explicitly states total redactions
     const summaryMatch = cleanSourceText.match(/Total Redactions:\s*(\d+)/i);
     if (summaryMatch) {
       return parseInt(summaryMatch[1], 10);
     }
-    // Fall back to counting the inline redacted entity tags
-    const matches = cleanSourceText.match(PII_TAG_REGEX);
-    return matches ? matches.length : 0;
+    
+    const allMatches = cleanSourceText.match(PII_TAG_REGEX);
+    return allMatches ? allMatches.length : 0;
   }, [cleanSourceText]);
 
   // Detect Sentiment Polarity if present
@@ -62,12 +73,18 @@ export default function FormattedOutput({ text, task = 'redact', isChat = false 
     };
   }, [cleanSourceText, task]);
 
-  // Convert markdown to HTML with enhanced PII tag badges
+  // Convert markdown to HTML with enhanced PII tag badges and auto-corrected summary count
   const formattedHtml = useMemo(() => {
     if (!cleanSourceText) return '';
 
+    // Auto-sync summary text if the LLM hallucinated the total number of redactions
+    let textToRender = cleanSourceText;
+    if (totalPiiCount > 0) {
+      textToRender = textToRender.replace(/(Total Redactions:\s*)\d+/i, `$1${totalPiiCount}`);
+    }
+
     // First convert markdown to raw HTML on sanitized text
-    let html = marked.parse(cleanSourceText);
+    let html = marked.parse(textToRender);
 
     // Replace [Category] with styled monochrome tag badge
     html = html.replace(PII_TAG_REGEX, (match) => {
@@ -76,7 +93,7 @@ export default function FormattedOutput({ text, task = 'redact', isChat = false 
     });
 
     return html;
-  }, [cleanSourceText]);
+  }, [cleanSourceText, totalPiiCount]);
 
   const handleCopy = () => {
     if (!text) return;
