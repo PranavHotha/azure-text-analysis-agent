@@ -159,15 +159,15 @@ export default function Sidebar({
           )}
 
           {!isAuthenticated ? (
-            tenantId.trim() ? (
-              <button
-                type="button"
-                className="btn effect01"
-                onClick={() => loginWithRedirect(tenantId.trim())}
-              >
-                <span>Sign In to Access</span>
-              </button>
-            ) : null
+            <button
+              type="button"
+              className="btn effect01"
+              disabled={!tenantId.trim()}
+              onClick={() => loginWithRedirect(tenantId.trim())}
+              title={!tenantId.trim() ? "Please enter a valid Azure Tenant ID to enable Sign In" : "Sign In with Microsoft"}
+            >
+              <span>Sign In to Access</span>
+            </button>
           ) : (
             <button
               type="button"
