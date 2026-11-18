@@ -152,6 +152,9 @@ export default function Sidebar({
                 placeholder="Enter your Azure Tenant ID"
                 onChange={(e) => setTenantId(e.target.value)}
               />
+              <span style={{ fontSize: '10px', color: '#64748B', lineHeight: '1.3', marginTop: '2px' }}>
+                * A valid Azure Tenant ID is required to sign in.
+              </span>
             </div>
           )}
 
