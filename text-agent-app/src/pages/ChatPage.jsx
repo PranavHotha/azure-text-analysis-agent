@@ -39,15 +39,17 @@ export default function ChatPage({
         </div>
         <h2 className="assistant-hero-title">Text Intelligence Assistant</h2>
         <p className="assistant-hero-desc">
-          Connected to <strong>{agentName || 'Text-Analysis-Agent'}</strong> {modelDeployment ? `(${modelDeployment})` : ''} via Azure AI Foundry. Type any message or query below to start.
+          {isModelConnected
+            ? <>Connected to <strong>{agentName || 'Text-Analysis-Agent'}</strong> {modelDeployment ? `(${modelDeployment})` : ''} via Azure AI Foundry. Type any message or query below to start.</>
+            : <>Configure and connect your Azure model in the sidebar to activate the conversational assistant.</>}
         </p>
         <div className="assistant-status-row">
-          <span className="live-pill">
-            <span className="live-dot-pulse"></span>
-            Language Intelligence Active
+          <span className={`live-pill ${isModelConnected ? 'active' : 'inactive'}`}>
+            <span className={`live-dot-pulse ${isModelConnected ? 'active' : 'inactive'}`}></span>
+            {isModelConnected ? 'Language Intelligence Active' : 'Language Intelligence Offline'}
           </span>
           <span className="agent-target-pill">
-            Target: {modelDeployment || 'Azure AI Foundry'}
+            Target: {modelDeployment ? modelDeployment : 'Model Not Connected'}
           </span>
         </div>
       </div>

@@ -677,12 +677,23 @@ body {
   color: #0F172A;
 }
 
+.live-pill.inactive {
+  color: #64748B;
+  background: #F8FAFC;
+  border-color: #E2E8F0;
+}
+
 .live-dot-pulse {
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: #000000;
   animation: pulse-ring 1.4s infinite ease-in-out;
+}
+
+.live-dot-pulse.inactive {
+  background: #94A3B8;
+  animation: none;
 }
 
 .agent-target-pill {
