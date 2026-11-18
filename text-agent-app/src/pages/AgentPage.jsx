@@ -88,10 +88,12 @@ export default function AgentPage({
             disabled={isAnalyzing || !inputText.trim() || !canRunAnalysis}
             title={
               !isAuthenticated
-                ? 'Sign in to access text analysis'
+                ? 'Sign in first, then connect your Azure model to enable Run Analysis'
                 : !isModelConnected
-                  ? 'Connect to Azure Model in the sidebar to run analysis'
-                  : 'Run text analysis'
+                  ? 'Connect to Azure Model in the sidebar to enable Run Analysis'
+                  : !inputText.trim()
+                    ? 'Enter text to analyze'
+                    : 'Run text analysis'
             }
           >
             <span>
@@ -114,6 +116,12 @@ export default function AgentPage({
             <span>CLEAR SESSION</span>
           </button>
         </div>
+
+        {!canRunAnalysis && (
+          <span style={{ fontSize: '10.5px', color: '#64748B', lineHeight: '1.4', marginTop: '6px', display: 'block' }}>
+            * {!isAuthenticated ? 'Sign in and connect your Azure model to enable RUN ANALYSIS.' : 'Connect your Azure model in the sidebar to enable RUN ANALYSIS.'}
+          </span>
+        )}
 
         {isAnalyzing && (
           <div className="analysis-status-message">

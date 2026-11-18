@@ -132,10 +132,22 @@ export default function Sidebar({
             type="button"
             className="btn effect01"
             onClick={handleConnectTarget}
-            disabled={!foundryEndpoint.trim() || !modelDeployment.trim()}
+            disabled={!isAuthenticated || !foundryEndpoint.trim() || !modelDeployment.trim()}
+            title={
+              !isAuthenticated
+                ? "Sign in with a valid Tenant ID first to connect your Azure model"
+                : !foundryEndpoint.trim() || !modelDeployment.trim()
+                  ? "Enter Foundry Endpoint and Model Deployment to connect"
+                  : "Save & Connect Azure Target"
+            }
           >
             <span>{configSaved ? 'Connected ✓' : 'Connect'}</span>
           </button>
+          {!isAuthenticated && (
+            <span style={{ fontSize: '10px', color: '#64748B', lineHeight: '1.3', marginTop: '2px' }}>
+              * Sign in is required to enable model connection.
+            </span>
+          )}
           {!isAuthenticated && (
             <div className="input-group" style={{ marginTop: '12px', marginBottom: '4px' }}>
               <div className="input-label-row">
